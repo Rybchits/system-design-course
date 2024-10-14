@@ -2,7 +2,7 @@
 
 ## Структурная диаграмма
 
-![structure](images/structure.png)
+![structure](../assets/structure.png)
 
 ## Язык реализации
 
@@ -30,7 +30,7 @@
 
 Автомат состояний ShellModel:
 
-![state_machine](images/state_machine.png)
+![state_machine](../assets/state_machine.png)
 
 ---
 
