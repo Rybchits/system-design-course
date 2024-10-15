@@ -1,7 +1,8 @@
-package parser
+package parser_test
 
 import (
 	"fmt"
+	. "shell/internal/parser"
 	"testing"
 )
 
@@ -18,7 +19,7 @@ func compareTwoTokensArray(lhs []Token, rhs []Token) bool {
 }
 
 func TestSimpleTokenizer(t *testing.T) {
-	s := "echo \"hello world\""
+	s := "echo hello world"
 	tokens, err := SplitOnTokens(s)
 
 	if err != nil {
@@ -27,7 +28,8 @@ func TestSimpleTokenizer(t *testing.T) {
 
 	result := compareTwoTokensArray(tokens, []Token{
 		Token{TokenType: WordToken, Value: "echo"},
-		Token{TokenType: WordToken, Value: "hello world"},
+		Token{TokenType: WordToken, Value: "hello"},
+		Token{TokenType: WordToken, Value: "world"},
 	})
 
 	if !result {
@@ -74,7 +76,7 @@ func TestEmptyInput(t *testing.T) {
 }
 
 func TestOnlySpaceSymbols(t *testing.T) {
-	s := " \t \t \t  \t"
+	s := " \t\t\t  \t"
 	tokens, err := SplitOnTokens(s)
 
 	if err != nil {
@@ -164,6 +166,57 @@ func TestMultipleSpace(t *testing.T) {
 		Token{TokenType: WordToken, Value: "echo"},
 		Token{TokenType: EndLineToken, Value: "\n"},
 		Token{TokenType: EndLineToken, Value: "\n"},
+	})
+
+	if !result {
+		t.Fail()
+	}
+}
+
+func TestSingleCommand(t *testing.T) {
+	s := "'cat echo'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		Token{TokenType: WordToken, Value: "cat echo"},
+	})
+
+	if !result {
+		t.Fail()
+	}
+}
+
+func TestNewlineInString(t *testing.T) {
+	s := "'cat\necho'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		Token{TokenType: WordToken, Value: "cat\necho"},
+	})
+
+	if !result {
+		t.Fail()
+	}
+}
+
+func TestEscapingInString(t *testing.T) {
+	s := "'cat\becho'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		Token{TokenType: WordToken, Value: "cat\becho"},
 	})
 
 	if !result {

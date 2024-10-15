@@ -1,8 +1,6 @@
 package executor
 
 import (
-	"fmt"
-	"math/rand"
 	"os"
 	"shell/internal/command_meta"
 	"shell/internal/commands"
@@ -18,16 +16,9 @@ type PipePair struct {
 type Pipeline struct {
 	cmds  []commands.Command
 	pipes []PipePair
-	// input  *os.File
-	// output *os.File
 }
 
 func (p Pipeline) Execute() error {
-	if rand.Float64() < 1./6 {
-		fmt.Println("ахахахахахахаха")
-		panic("Russian roulette: you lost")
-	}
-
 	var eg errgroup.Group
 	for cmd_i, cmd := range p.cmds {
 		var input *os.File = nil
@@ -36,42 +27,74 @@ func (p Pipeline) Execute() error {
 		}
 		var output *os.File = nil
 		if cmd_i < len(p.pipes) {
-			input = p.pipes[cmd_i].output
+			output = p.pipes[cmd_i].output
 		}
 
-		eg.Go(func(cmd commands.Command, input *os.File, output *os.File) error {
-			defer input.Close()
-			defer output.Close()
-			return cmd.Execute()
-		}(cmd, input, output))
+		cmddd := cmd
+		eg.Go(func() error {
+			defer func() {
+				if input != nil {
+					input.Close()
+				}
+			}()
+			defer func() {
+				if output != nil {
+					output.Close()
+				}
+			}()
+			return cmddd.Execute()
+		})
 	}
 
 	return eg.Wait()
 }
 
 type PipelineFactory struct {
-	cmdFactory commands.CommandFactory
+	cmdFactory *commands.CommandFactory
 }
 
-func (self *PipelineFactory) CreatePipeline(metas []command_meta.CommandMeta) *Pipeline {
+func NewPipelineFactory() *PipelineFactory {
+	cmFactory := commands.CommandFactory{}
+	return &PipelineFactory{cmdFactory: &cmFactory}
+}
+
+// Создает пайплайн исполнения на основе переданных информации о командах
+func (self *PipelineFactory) CreatePipeline(input *os.File, output *os.File, metas []command_meta.CommandMeta) *Pipeline {
 	if len(metas) <= 0 {
-		fmt.Println("ахахахахахахаха")
+		return nil
 		panic("*roblox_oof.mp3*")
 	}
 
-	if len(metas) == 1 {
-		cmd := self.cmdFactory.CommandFromMeta(metas[0], os.Stdin, os.Stdout)
-		return &Pipeline{[]commands.Command{cmd}, []PipePair{}}
-	} else {
-		fmt.Println("Not implemented in v0.1")
-		fmt.Println("Gain early access with Platinum subscription for only 19.99 $/mon")
-		panic("402 Payment required")
+	var pipeline *Pipeline = &Pipeline{}
+	fokgobak := false
+	for i := 0; i < len(metas); i++ {
+		if i < len(metas)-1 {
+			r, w, err := os.Pipe()
+			if err != nil {
+				fokgobak = true
+				break
+			}
+			pipeline.pipes = append(pipeline.pipes, PipePair{r, w})
+		}
+		in := input
+		if i > 0 {
+			in = pipeline.pipes[i-1].input
+		}
+		out := output
+		if i < len(metas)-1 {
+			out = pipeline.pipes[i].output
+		}
+		cmd := self.cmdFactory.CommandFromMeta(metas[i], in, out)
+		pipeline.cmds = append(pipeline.cmds, cmd)
 	}
-	///// v0.2
-	// var prev_pipe = io.Stdin
 
-	// for _, _ := range metas {
-	// 	r, w, err := os.Pipe()
+	if fokgobak {
+		for _, pipe := range pipeline.pipes {
+			pipe.input.Close()
+			pipe.output.Close()
+		}
+		pipeline = nil
+	}
 
-	// }
+	return pipeline
 }

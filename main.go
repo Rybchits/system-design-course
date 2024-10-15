@@ -1,33 +1,22 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"shell/internal/parser"
+	"os/signal"
+	shellmodel "shell/internal/shell_model"
+	"syscall"
 )
 
 func main() {
-	/*l := parser.NewTokenizer(os.Stdin)
-	token, err := l.Next()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	for err == nil {
-		println("New token: ", token.Value, " ", token.TokenType)
-		token, err = l.Next()
-	}
-	println("error ", err)*/
+	sh := shellmodel.NewShell()
 
-	a := parser.NewParser(os.Stdin)
-	a.Init()
+	go func() {
+		sh.ShellLoop(os.Stdin, os.Stdout)
+	}()
 
-	for event := range a.Listen() {
-		if event.Error != "" {
-			fmt.Printf("Error: %s\n", event.Error)
-		} else {
-			fmt.Printf("Name: %s\n", event.Command.Name)
-			for _, arg := range event.Command.Args {
-				fmt.Printf("Arg: %s ", arg)
-			}
-		}
-	}
-	a.Dispose()
+	<-sigChan
+	sh.Terminate()
 }

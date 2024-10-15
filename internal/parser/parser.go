@@ -1,66 +1,57 @@
 package parser
 
 import (
-	"fmt"
 	"io"
 	"shell/internal/command_meta"
 )
 
 type Parser struct {
 	tokenizer *Tokenizer
-	channel   chan ParserEvent
-}
-
-type ParserEvent struct {
-	Command command_meta.CommandMeta
-	Error   string
 }
 
 func NewParser(read io.Reader) *Parser {
-	tokenizer := NewTokenizer(read)
-	channel := make(chan ParserEvent)
-	return &Parser{tokenizer: tokenizer, channel: channel}
-}
-
-func (p *Parser) Listen() <-chan ParserEvent {
-	return p.channel
-}
-
-func mapFunc[T any, R any](input []T, f func(T) R) []R {
-	result := make([]R, len(input))
-	for i, v := range input {
-		result[i] = f(v)
+	return &Parser{
+		tokenizer: NewTokenizer(read),
 	}
-	return result
 }
 
-func (p *Parser) Init() {
-	tokens := []Token{}
+func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
+	pipe := make([]command_meta.CommandMeta, 0)
+	current := command_meta.CommandMeta{}
 	for {
 		token, err := p.tokenizer.Next()
-		fmt.Println("dub ", token)
-		if err != nil {
-			fmt.Println("err ", err.Error())
-			if err == io.EOF {
-				if len(tokens) == 0 {
-					continue
+		if err == nil {
+			switch token.TokenType {
+			case WordToken:
+				{
+					if current.Name == "" {
+						current.Name = token.Value
+					} else {
+						current.Args = append(current.Args, token.Value)
+					}
 				}
-				name := tokens[0].Value
-				args := mapFunc(tokens[1:], func(token Token) string { return token.Value })
-				p.channel <- ParserEvent{Command: command_meta.CommandMeta{Name: name, Args: args}}
-				tokens = []Token{}
-			} else {
-				p.channel <- ParserEvent{Error: err.Error()}
-			}
-		} else if token.TokenType == WordToken {
-			tokens = append(tokens, *token)
+			case PipeToken:
+				{
+					if !current.IsEmpty() {
+						pipe = append(pipe, current)
+						current = command_meta.CommandMeta{}
+					}
+				}
+			case EndLineToken:
+				{
+					if !current.IsEmpty() {
+						pipe = append(pipe, current)
+					}
 
-		} else if token.TokenType == SpaceToken {
-			fmt.Println("Space ", token.Value)
+					if len(pipe) != 0 {
+						return pipe, nil
+					}
+				}
+			}
+		} else if err == io.EOF {
+			return pipe, nil
+		} else {
+			return pipe, err
 		}
 	}
-}
-
-func (p *Parser) Dispose() {
-	close(p.channel)
 }

@@ -3,47 +3,46 @@ package shellmodel
 import (
 	"fmt"
 	"os"
+	"shell/internal/executor"
 	"shell/internal/parser"
 )
 
-// type State int;
+type Shell struct {
+	pipelineFactory *executor.PipelineFactory
+	terminate       chan bool
+}
 
-// const (
-// 	INIT State = iota
-// 	EXECUTING
-// 	EXIT
-// )
+func NewShell() *Shell {
+	pipelineFactory := executor.NewPipelineFactory()
+	return &Shell{pipelineFactory: pipelineFactory, terminate: make(chan bool)}
+}
 
-// type Shell struct {
-// 	state State
-// }
+// Основной цикл оболочки
+// Обрабатывает пользовательский ввод
+func (self *Shell) ShellLoop(input *os.File, output *os.File) {
 
-// func NewShell() *Shell {
-// 	return &Shell { INIT }
-// }
-
-func //(self *Shell)
-ShellLoop() {
-	curr_parser := parser.NewParser(os.Stdin)
-
-	//self.state = EXECUTING
+	curr_parser := parser.NewParser(input)
 
 	for {
-		fmt.Print("Enter command: ")
-		command := curr_parser.ParseCommand() //?
-		/*
-			command -> executor factory ?
-			factory.GetPipeline()
-			res, err := pipeline.Execute()
-			if err != Nil {
-				fmt.Println("Pizdos")
-			} else {
-				fmt.Println("zaebis")
+		select {
+		case <-self.terminate:
+			return
+		default:
+			commands, err := curr_parser.Parse()
+			if err != nil {
+				output.WriteString("Parse issue\n")
+				continue
 			}
-		*/
-		// command -> executor factory ?
-		// factory.GetPipeline()
-		// pipeline
+			fmt.Println("Commands: ", commands)
+			pipeline := self.pipelineFactory.CreatePipeline(input, output, commands)
+			err = pipeline.Execute()
+			if err != nil {
+				fmt.Printf("Issue running pipeline %s\n", err)
+			}
+		}
 	}
+}
 
+func (self *Shell) Terminate() {
+	self.terminate <- true
 }

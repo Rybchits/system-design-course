@@ -38,7 +38,6 @@ const (
 	pipeRunes             = "|"
 )
 
-// Classes of rune token
 const (
 	unknownRuneClass runeTokenClass = iota
 	spaceRuneClass
@@ -51,7 +50,6 @@ const (
 	eofRuneClass
 )
 
-// Classes of lexographic token
 const (
 	UnknownToken TokenType = iota
 	WordToken
@@ -61,20 +59,18 @@ const (
 	PipeToken
 )
 
-// Lexer state machine states
 const (
 	startState           lexerState = iota // еще не было символов
 	inWordState                            // в процессе определения слова
-	escapingState                          // we have just consumed an escape rune; the next rune is literal
-	escapingQuotedState                    // we have just consumed an escape rune within a quoted string
-	quotingEscapingState                   // we are within a quoted string that supports escaping ("...")
-	quotingState                           // we are within a string that does not support escaping ('...')
-	commentState                           // we are within a comment (everything following an unquoted or unescaped #
+	escapingState                          // экранирование, следующий символ должен быть литеральным
+	escapingQuotedState                    // экранирование в заключенной в кавычки строке
+	quotingEscapingState                   // внутри заключенной в кавычки строки, которая поддерживает экранирование
+	quotingState                           // внутри строки, которая не поддерживает экранирование
+	commentState                           // в пределах комментария
 	pipeSymbolState                        // прошлый символ был pipe
 	endLineState                           // прошлый символ был \n
 )
 
-// tokenClassifier is used for classifying rune characters.
 type tokenClassifier map[rune]runeTokenClass
 
 func (typeMap tokenClassifier) addRuneClass(runes string, tokenType runeTokenClass) {
@@ -83,7 +79,6 @@ func (typeMap tokenClassifier) addRuneClass(runes string, tokenType runeTokenCla
 	}
 }
 
-// newDefaultClassifier creates a new classifier for ASCII characters.
 func newDefaultClassifier() tokenClassifier {
 	t := tokenClassifier{}
 	t.addRuneClass(spaceRunes, spaceRuneClass)
@@ -96,12 +91,10 @@ func newDefaultClassifier() tokenClassifier {
 	return t
 }
 
-// ClassifyRune classifiees a rune
 func (t tokenClassifier) ClassifyRune(runeVal rune) runeTokenClass {
 	return t[runeVal]
 }
 
-// Tokenizer turns an input stream into a sequence of typed tokens
 type Tokenizer struct {
 	input      bufio.Reader
 	classifier tokenClassifier
@@ -109,7 +102,6 @@ type Tokenizer struct {
 	isEnded    bool
 }
 
-// NewTokenizer creates a new tokenizer from an input stream.
 func NewTokenizer(r io.Reader) *Tokenizer {
 	input := bufio.NewReader(r)
 	classifier := newDefaultClassifier()
@@ -121,7 +113,6 @@ func NewTokenizer(r io.Reader) *Tokenizer {
 	}
 }
 
-// / Собирает следующий
 func (t *Tokenizer) scanStream() (*Token, error) {
 	var tokenType TokenType
 	var value []rune
@@ -155,7 +146,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 		}
 
 		switch t.state {
-		case startState: // no runes read yet
+		case startState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -208,7 +199,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 					}
 				}
 			}
-		case inWordState: // in a regular word
+		case inWordState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -262,7 +253,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 					}
 				}
 			}
-		case escapingState: // the rune after an escape character
+		case escapingState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -280,7 +271,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 					}
 				}
 			}
-		case escapingQuotedState: // the next rune after an escape character, in double quotes
+		case escapingQuotedState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -298,7 +289,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 					}
 				}
 			}
-		case quotingEscapingState: // in escaping double quotes
+		case quotingEscapingState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -323,7 +314,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 					}
 				}
 			}
-		case quotingState: // in non-escaping single quotes
+		case quotingState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -344,7 +335,7 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 					}
 				}
 			}
-		case commentState: // in a comment
+		case commentState:
 			{
 				switch nextRuneType {
 				case eofRuneClass:
@@ -387,7 +378,6 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 	}
 }
 
-// Next returns the next token in the stream.
 func (t *Tokenizer) Next() (*Token, error) {
 	return t.scanStream()
 }
