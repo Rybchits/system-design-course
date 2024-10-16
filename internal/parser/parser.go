@@ -49,14 +49,11 @@ func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 					if !current.IsEmpty() {
 						pipe = append(pipe, current)
 					}
-
-					if len(pipe) != 0 {
-						return pipe, nil
-					}
+					return pipe, nil
 				}
 			}
 		} else if err == io.EOF {
-			return pipe, nil
+			return pipe, io.EOF
 		} else {
 			return pipe, err
 		}

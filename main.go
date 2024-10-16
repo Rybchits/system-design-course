@@ -14,7 +14,8 @@ func main() {
 	sh := shellmodel.NewShell()
 
 	go func() {
-		sh.ShellLoop(os.Stdin, os.Stdout)
+		sh.ShellLoop(os.Stdin, os.Stdout, true)
+		os.Exit(0)
 	}()
 
 	<-sigChan

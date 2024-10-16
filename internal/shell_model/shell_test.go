@@ -16,7 +16,7 @@ func TestShellCommand(t *testing.T) {
 	expected := []byte("42\n")
 
 	go func(sh *Shell, in *os.File, out *os.File) {
-		sh.ShellLoop(in, out)
+		sh.ShellLoop(in, out, false)
 	}(test_shell, in_read, out_write)
 
 	in_write.WriteString("echo 42\n")
@@ -42,7 +42,7 @@ func TestPipe(t *testing.T) {
 	expected := []byte("\t1\t1\t3\n")
 
 	go func(sh *Shell, in *os.File, out *os.File) {
-		sh.ShellLoop(in, out)
+		sh.ShellLoop(in, out, false)
 	}(test_shell, in_read, out_write)
 
 	in_write.WriteString("echo 42 | wc\n")

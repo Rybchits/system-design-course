@@ -2,6 +2,7 @@ package shellmodel
 
 import (
 	"fmt"
+	"io"
 	"os"
 	envsholder "shell/internal/envs_holder"
 	"shell/internal/executor"
@@ -20,12 +21,17 @@ func NewShell() *Shell {
 
 // Основной цикл оболочки
 // Обрабатывает пользовательский ввод
-func (self *Shell) ShellLoop(input *os.File, output *os.File) {
-	curr_parser := parser.NewParser(input)
+func (self *Shell) ShellLoop(input *os.File, output *os.File, to_greet bool) {
 
 	for {
-		//output.WriteString("$ ")
+		if to_greet {
+			output.WriteString("$ ")
+		}
+		curr_parser := parser.NewParser(input)
 		commands, err := curr_parser.Parse()
+		if err == io.EOF {
+			return
+		}
 		if err != nil {
 			output.WriteString("Parse issue\n")
 			continue
