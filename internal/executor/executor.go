@@ -31,11 +31,13 @@ func (p Pipeline) Execute() error {
 	}
 
 	for cmd_i, cmd := range p.cmds {
+		cmd_ii := cmd_i
+		cmdd := cmd
 		eg.Go(func() error {
 			defer func() {
-				chs[cmd_i] <- true
+				chs[cmd_ii] <- true
 			}()
-			res := cmd.Execute()
+			res := cmdd.Execute()
 			return res
 		})
 	}

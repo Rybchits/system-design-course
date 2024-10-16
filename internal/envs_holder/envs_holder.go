@@ -28,6 +28,13 @@ func (e *Env) Clear() {
 	e.Vars = make(map[string]string)
 }
 
+// Инициализировать хранилище переменных окружения
+func (e *Env) Init() {
+	if e.Vars == nil {
+		e.Vars = make(map[string]string)
+	}
+}
+
 //////////////////////////////////
 
 const (
@@ -39,5 +46,5 @@ const (
 
 // Хранилище переменных окружения
 var GlobalEnv = Env{
-	Vars:  map[string]string{ExecStatusKey: OkStatusValue},
+	Vars: map[string]string{ExecStatusKey: OkStatusValue},
 }

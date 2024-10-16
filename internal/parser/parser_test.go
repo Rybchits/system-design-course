@@ -1,40 +1,36 @@
 package parser_test
 
 import (
-	"fmt"
-	. "shell/internal/parser"
 	"shell/internal/command_meta"
+	envsholder "shell/internal/envs_holder"
+	. "shell/internal/parser"
+	"strings"
 	"testing"
 )
 
-func compareTwoTokensArray(lhs []Token, rhs []Token) bool {
-	if len(lhs) != len(rhs) {
-		return false
-	}
-	for index := range lhs {
-		if !lhs[index].Equal(&rhs[index]) {
-			return false
-		}
-	}
-	return true
-}
-
 func TestComplexEnvs(t *testing.T) {
-	s := "x=\"once upon\"=\"a\" y=\"a time\" bash -c 'echo $x $y'"
+	s := "x=\"once upon\"=\"a\" y=\"a time\" bash -c 'echo $x $y'\n"
 	parser := NewParser(strings.NewReader(s))
 	commands, err := parser.Parse()
 	if err != nil {
 		t.Fail()
 	}
-	
+
 	expected := []command_meta.CommandMeta{
-		command_meta.CommandMeta{
-			Name: "bash", 
+		{
+			Name: "bash",
 			Args: []string{"-c", "echo $x $y"},
+			Envs: envsholder.Env{
+				Vars: map[string]string{"x": "once upon=a", "y": "a time"},
+			},
 		},
 	}
 
-	for i := range commands {
+	if len(expected) != len(commands) {
+		t.Fail()
+	}
+
+	for i := range expected {
 		if !commands[i].Equal(&expected[i]) {
 			t.Fail()
 		}

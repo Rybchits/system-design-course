@@ -1,8 +1,7 @@
 package command_meta
 
 import (
-	"maps"
-	"slices"
+	"fmt"
 	envsholder "shell/internal/envs_holder"
 )
 
@@ -23,5 +22,31 @@ func (m *CommandMeta) IsEmpty() bool {
 }
 
 func (m *CommandMeta) Equal(r *CommandMeta) bool {
-	return m.Name == r.Name && maps.Equal(m.Envs.Vars, r.Envs.Vars) && slices.Equal(m.Args, r.Args);
+	if m.Name != r.Name {
+		return false
+	}
+
+	if len(m.Args) != len(r.Args) {
+		return false
+	}
+
+	for i := range r.Args {
+		if m.Args[i] != r.Args[i] {
+			return false
+		}
+	}
+
+	fmt.Println(m.Envs.Vars)
+	fmt.Println(r.Envs.Vars)
+	if len(m.Envs.Vars) != len(r.Envs.Vars) {
+		return false
+	}
+
+	for i := range r.Envs.Vars {
+		if m.Envs.Vars[i] != r.Envs.Vars[i] {
+			return false
+		}
+	}
+
+	return true
 }

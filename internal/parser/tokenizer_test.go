@@ -27,9 +27,9 @@ func TestSimpleTokenizer(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "echo"},
-		Token{TokenType: WordToken, Value: "hello"},
-		Token{TokenType: WordToken, Value: "world"},
+		{TokenType: WordToken, Value: "echo"},
+		{TokenType: WordToken, Value: "hello"},
+		{TokenType: WordToken, Value: "world"},
 	})
 
 	if !result {
@@ -48,9 +48,9 @@ func TestPipeTokenizer1(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat"},
-		Token{TokenType: PipeToken, Value: "|"},
-		Token{TokenType: WordToken, Value: "echo"},
+		{TokenType: WordToken, Value: "cat"},
+		{TokenType: PipeToken, Value: "|"},
+		{TokenType: WordToken, Value: "echo"},
 	})
 
 	if !result {
@@ -100,10 +100,10 @@ func TestEndLineInMiddleWorld(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "echo"},
-		Token{TokenType: WordToken, Value: "hello"},
-		Token{TokenType: EndLineToken, Value: "\n"},
-		Token{TokenType: WordToken, Value: "world"},
+		{TokenType: WordToken, Value: "echo"},
+		{TokenType: WordToken, Value: "hello"},
+		{TokenType: EndLineToken, Value: "\n"},
+		{TokenType: WordToken, Value: "world"},
 	})
 
 	if !result {
@@ -121,9 +121,9 @@ func TestPipeTokenizer2(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat"},
-		Token{TokenType: PipeToken, Value: "|"},
-		Token{TokenType: WordToken, Value: "echo"},
+		{TokenType: WordToken, Value: "cat"},
+		{TokenType: PipeToken, Value: "|"},
+		{TokenType: WordToken, Value: "echo"},
 	})
 
 	if !result {
@@ -140,9 +140,9 @@ func TestStringWithEndLine(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat"},
-		Token{TokenType: WordToken, Value: "echo"},
-		Token{TokenType: EndLineToken, Value: "\n"},
+		{TokenType: WordToken, Value: "cat"},
+		{TokenType: WordToken, Value: "echo"},
+		{TokenType: EndLineToken, Value: "\n"},
 	})
 
 	if !result {
@@ -159,10 +159,10 @@ func TestMultipleSpace(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat"},
-		Token{TokenType: WordToken, Value: "echo"},
-		Token{TokenType: EndLineToken, Value: "\n"},
-		Token{TokenType: EndLineToken, Value: "\n"},
+		{TokenType: WordToken, Value: "cat"},
+		{TokenType: WordToken, Value: "echo"},
+		{TokenType: EndLineToken, Value: "\n"},
+		{TokenType: EndLineToken, Value: "\n"},
 	})
 
 	if !result {
@@ -179,7 +179,7 @@ func TestSingleCommand(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat echo"},
+		{TokenType: WordToken, Value: "cat echo"},
 	})
 
 	if !result {
@@ -196,7 +196,7 @@ func TestNewlineInString(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat\necho"},
+		{TokenType: WordToken, Value: "cat\necho"},
 	})
 
 	if !result {
@@ -213,7 +213,7 @@ func TestEscapingInString(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "cat\becho"},
+		{TokenType: WordToken, Value: "cat\becho"},
 	})
 
 	if !result {
@@ -230,11 +230,11 @@ func TestSimpleEnvs(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "x=once upon "},
-		Token{TokenType: WordToken, Value: "y=a time"},
-		Token{TokenType: WordToken, Value: "bash"},
-		Token{TokenType: WordToken, Value: "-c"},
-		Token{TokenType: WordToken, Value: "echo $x $y"},
+		{TokenType: WordToken, Value: "x=once upon "},
+		{TokenType: WordToken, Value: "y=a time"},
+		{TokenType: WordToken, Value: "bash"},
+		{TokenType: WordToken, Value: "-c"},
+		{TokenType: WordToken, Value: "echo $x $y"},
 	})
 
 	if !result {
@@ -243,7 +243,7 @@ func TestSimpleEnvs(t *testing.T) {
 	}
 }
 
-func TestComplexEnvs(t *testing.T) {
+func TestComplexEnvsWithStrings(t *testing.T) {
 	s := "x=\"once upon\"=\"a\" y=\"a time\" bash -c 'echo $x $y'"
 	tokens, err := SplitOnTokens(s)
 
@@ -252,11 +252,11 @@ func TestComplexEnvs(t *testing.T) {
 	}
 
 	result := compareTwoTokensArray(tokens, []Token{
-		Token{TokenType: WordToken, Value: "x=once upon=a"},
-		Token{TokenType: WordToken, Value: "y=a time"},
-		Token{TokenType: WordToken, Value: "bash"},
-		Token{TokenType: WordToken, Value: "-c"},
-		Token{TokenType: WordToken, Value: "echo $x $y"},
+		{TokenType: WordToken, Value: "x=once upon=a"},
+		{TokenType: WordToken, Value: "y=a time"},
+		{TokenType: WordToken, Value: "bash"},
+		{TokenType: WordToken, Value: "-c"},
+		{TokenType: WordToken, Value: "echo $x $y"},
 	})
 
 	if !result {
