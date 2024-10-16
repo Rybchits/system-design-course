@@ -20,30 +20,29 @@ type Pipeline struct {
 
 func (p Pipeline) Execute() error {
 	var eg errgroup.Group
-	for cmd_i, cmd := range p.cmds {
-		var input *os.File = nil
-		if cmd_i > 0 {
-			input = p.pipes[cmd_i-1].input
-		}
-		var output *os.File = nil
-		if cmd_i < len(p.pipes) {
-			output = p.pipes[cmd_i].output
-		}
+	chs := make([]chan bool, len(p.cmds))
+	for ch_i := range chs {
+		chs[ch_i] = make(chan bool)
+	}
 
-		cmddd := cmd
+	for cmd_i, cmd := range p.cmds {
 		eg.Go(func() error {
 			defer func() {
-				if input != nil {
-					input.Close()
-				}
+				chs[cmd_i] <- true
 			}()
-			defer func() {
-				if output != nil {
-					output.Close()
-				}
-			}()
-			return cmddd.Execute()
+			res := cmd.Execute()
+			return res
 		})
+	}
+
+	for cmd_i := range p.cmds {
+		<-chs[cmd_i]
+		if cmd_i > 0 {
+			p.pipes[cmd_i-1].input.Close()
+		}
+		if cmd_i < len(p.pipes) {
+			p.pipes[cmd_i].output.Close()
+		}
 	}
 
 	return eg.Wait()

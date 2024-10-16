@@ -3,6 +3,7 @@ package commands
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"shell/internal/command_meta"
@@ -104,14 +105,14 @@ type CatCommand struct {
 // Имя файла берется из метаданных команды.
 // Результат работы выводится в файл, который представлен дескриптором output.
 func (cmd CatCommand) Execute() error {
-	var buffer []byte
-	var err error
+	in := cmd.input
+	var err error = nil
+
 	if len(cmd.meta.Args) != 0 {
 		filename := cmd.meta.Args[0]
-		buffer, err = os.ReadFile(filename)
+		in, err = os.Open(filename)
 	} else {
-		in := cmd.input
-		_, err = in.Read(buffer)
+		in = cmd.input
 	}
 
 	if err != nil {
@@ -119,7 +120,19 @@ func (cmd CatCommand) Execute() error {
 		return err
 	}
 
-	if _, err := cmd.output.Write(buffer); err != nil {
+	buffer := make([]byte, 4096)
+	for err == nil {
+		var n int
+		n, err = in.Read(buffer)
+		if err == nil {
+			_, err = cmd.output.Write(buffer[:n])
+		}
+	}
+	if err == io.EOF {
+		err = nil
+	}
+
+	if err != nil {
 		fmt.Printf("cat: Failed to write in file with err: %s\n", err)
 		return err
 	}
