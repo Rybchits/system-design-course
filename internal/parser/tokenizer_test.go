@@ -120,7 +120,6 @@ func TestPipeTokenizer2(t *testing.T) {
 		t.Fail()
 	}
 
-	fmt.Println(tokens)
 	result := compareTwoTokensArray(tokens, []Token{
 		Token{TokenType: WordToken, Value: "cat"},
 		Token{TokenType: PipeToken, Value: "|"},
@@ -140,7 +139,6 @@ func TestStringWithEndLine(t *testing.T) {
 		t.Fail()
 	}
 
-	fmt.Println(tokens)
 	result := compareTwoTokensArray(tokens, []Token{
 		Token{TokenType: WordToken, Value: "cat"},
 		Token{TokenType: WordToken, Value: "echo"},
@@ -160,7 +158,6 @@ func TestMultipleSpace(t *testing.T) {
 		t.Fail()
 	}
 
-	fmt.Println(tokens)
 	result := compareTwoTokensArray(tokens, []Token{
 		Token{TokenType: WordToken, Value: "cat"},
 		Token{TokenType: WordToken, Value: "echo"},
@@ -220,6 +217,50 @@ func TestEscapingInString(t *testing.T) {
 	})
 
 	if !result {
+		t.Fail()
+	}
+}
+
+func TestSimpleEnvs(t *testing.T) {
+	s := "x=\"once upon \" y=\"a time\" bash -c 'echo $x $y'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		Token{TokenType: WordToken, Value: "x=once upon "},
+		Token{TokenType: WordToken, Value: "y=a time"},
+		Token{TokenType: WordToken, Value: "bash"},
+		Token{TokenType: WordToken, Value: "-c"},
+		Token{TokenType: WordToken, Value: "echo $x $y"},
+	})
+
+	if !result {
+		fmt.Println(tokens)
+		t.Fail()
+	}
+}
+
+func TestComplexEnvs(t *testing.T) {
+	s := "x=\"once upon\"=\"a\" y=\"a time\" bash -c 'echo $x $y'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		Token{TokenType: WordToken, Value: "x=once upon=a"},
+		Token{TokenType: WordToken, Value: "y=a time"},
+		Token{TokenType: WordToken, Value: "bash"},
+		Token{TokenType: WordToken, Value: "-c"},
+		Token{TokenType: WordToken, Value: "echo $x $y"},
+	})
+
+	if !result {
+		fmt.Println(tokens)
 		t.Fail()
 	}
 }

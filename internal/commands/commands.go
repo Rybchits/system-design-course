@@ -6,8 +6,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"shell/internal/command_meta"
 	"strings"
+	"shell/internal/command_meta"
+	envsholder "shell/internal/envs_holder"
 )
 
 // Интерфейс, который реализуют все команды,
@@ -208,6 +209,8 @@ func (cmd ProcessCommand) Execute() error {
 	process := exec.Command(cmd.meta.Name, cmd.meta.Args...)
 	process.Stdin = cmd.input
 	process.Stdout = cmd.output
+	process.Env = cmd.meta.Envs.Environ()
+	process.Env = append(process.Env, envsholder.GlobalEnv.Environ()...)
 	err := process.Run()
 	if err != nil {
 		fmt.Printf("process: Failed to process command with err: %s\n", err)

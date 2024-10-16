@@ -2,6 +2,7 @@ package parser
 
 import (
 	"io"
+	"strings"
 	"shell/internal/command_meta"
 )
 
@@ -25,7 +26,12 @@ func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 			case WordToken:
 				{
 					if current.Name == "" {
-						current.Name = token.Value
+						if (strings.Contains(token.Value, "=")) {
+							parts := strings.SplitN(token.Value, "=", 2)
+							current.Envs.Vars[parts[0]] = parts[1]
+						} else {
+							current.Name = token.Value
+						}
 					} else {
 						current.Args = append(current.Args, token.Value)
 					}

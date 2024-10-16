@@ -8,16 +8,21 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Пара дескрипторов на чтение и на запись
 type PipePair struct {
 	input  *os.File
 	output *os.File
 }
 
+// Набор команд, соединенных пайпами
 type Pipeline struct {
 	cmds  []commands.Command
 	pipes []PipePair
 }
 
+// Выполнить пайплайн из команд.
+// В случае ошибки какой-либо из команд пайплайна, все остальные завершают свою работу.
+// Значение ошибки возвращается в вызывающую функцию.
 func (p Pipeline) Execute() error {
 	var eg errgroup.Group
 	chs := make([]chan bool, len(p.cmds))
@@ -57,11 +62,10 @@ func NewPipelineFactory() *PipelineFactory {
 	return &PipelineFactory{cmdFactory: &cmFactory}
 }
 
-// Создает пайплайн исполнения на основе переданных информации о командах
+// Создает пайплайн исполнения на основе переданной информации о командах
 func (self *PipelineFactory) CreatePipeline(input *os.File, output *os.File, metas []command_meta.CommandMeta) *Pipeline {
 	if len(metas) <= 0 {
 		return nil
-		panic("*roblox_oof.mp3*")
 	}
 
 	var pipeline *Pipeline = &Pipeline{}

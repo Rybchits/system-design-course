@@ -3,6 +3,7 @@ package shellmodel
 import (
 	"fmt"
 	"os"
+	envsholder "shell/internal/envs_holder"
 	"shell/internal/executor"
 	"shell/internal/parser"
 )
@@ -20,7 +21,6 @@ func NewShell() *Shell {
 // Основной цикл оболочки
 // Обрабатывает пользовательский ввод
 func (self *Shell) ShellLoop(input *os.File, output *os.File) {
-
 	curr_parser := parser.NewParser(input)
 
 	for {
@@ -33,10 +33,13 @@ func (self *Shell) ShellLoop(input *os.File, output *os.File) {
 				output.WriteString("Parse issue\n")
 				continue
 			}
-			fmt.Println("Commands: ", commands)
 			pipeline := self.pipelineFactory.CreatePipeline(input, output, commands)
+			if pipeline == nil {
+				continue
+			}
 			err = pipeline.Execute()
 			if err != nil {
+				envsholder.GlobalEnv.Set(envsholder.ExecStatusKey, "1")
 				fmt.Printf("Issue running pipeline %s\n", err)
 			}
 		}
