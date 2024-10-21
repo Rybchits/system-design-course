@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"shell/internal/command_meta"
+	envsholder "shell/internal/envs_holder"
 	"testing"
 )
 
@@ -356,5 +357,27 @@ func TestProcessExecuteSimple(t *testing.T) {
 		if !bytes.Equal(buf, expected) {
 			t.Fatalf(`Different outputs: %q != %q`, buf, expected)
 		}
+	}
+}
+
+//////////////////////////////////
+
+func TestSetEnvs(t *testing.T) {
+	expected := "world"
+	args := make([]string, 0)
+
+	meta := command_meta.CommandMeta{
+		Name: "",
+		Args: args,
+		Envs: envsholder.Env{
+			Vars: map[string]string{"hello": expected},
+		},
+	}
+	cmd := SetGlobalEnvCommand{nil, nil, meta}
+	cmd.Execute()
+
+	val := envsholder.GlobalEnv.Vars["hello"]
+	if val != expected {
+		t.Fatalf(`Different outputs: %q != %q`, val, expected)
 	}
 }
