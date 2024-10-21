@@ -19,6 +19,8 @@ func NewParser(read io.Reader) *Parser {
 func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 	pipe := make([]command_meta.CommandMeta, 0)
 	current := command_meta.CommandMeta{}
+	//var prev_token TokenType = nil
+
 	for {
 		token, err := p.tokenizer.Next()
 		if err == nil {

@@ -221,6 +221,43 @@ func TestEscapingInString(t *testing.T) {
 	}
 }
 
+func TestNonEscapingQuoteStirng(t *testing.T) {
+	s := "echo 'abc'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		{TokenType: WordToken, Value: "echo"},
+		{TokenType: WordToken, Value: "abc"},
+	})
+
+	if !result {
+		fmt.Println(tokens)
+		t.Fail()
+	}
+}
+
+func TestNonEscapingQuote2Stirng(t *testing.T) {
+	s := "echo'abc'"
+	tokens, err := SplitOnTokens(s)
+
+	if err != nil {
+		t.Fail()
+	}
+
+	result := compareTwoTokensArray(tokens, []Token{
+		{TokenType: WordToken, Value: "echoabc"},
+	})
+
+	if !result {
+		fmt.Println(tokens)
+		t.Fail()
+	}
+}
+
 func TestSimpleEnvs(t *testing.T) {
 	s := "x=\"once upon \" y=\"a time\" bash -c 'echo $x $y'"
 	tokens, err := SplitOnTokens(s)
