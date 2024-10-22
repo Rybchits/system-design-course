@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	envsholder "shell/internal/envs_holder"
 )
 
 type TokenType int
@@ -101,17 +102,18 @@ type Tokenizer struct {
 	input       bufio.Reader
 	classifier  tokenClassifier
 	statesStack LexerStateStack
+	envsHolder  *envsholder.Env
 	isEnded     bool
 }
 
-func NewTokenizer(r io.Reader) *Tokenizer {
+func NewTokenizer(r io.Reader, vars *envsholder.Env) *Tokenizer {
 	input := bufio.NewReader(r)
-	classifier := newDefaultClassifier()
 
 	return &Tokenizer{
 		input:       *input,
-		classifier:  classifier,
+		classifier:  newDefaultClassifier(),
 		statesStack: *NewEmptyStack(),
+		envsHolder:  vars,
 		isEnded:     false,
 	}
 }
@@ -350,11 +352,125 @@ func (t *Tokenizer) handleStartState(
 	}
 }
 
+func (t *Tokenizer) handleEnviromentVariableState(
+	tokenType *TokenType,
+	nextRuneType runeTokenClass,
+	value *[]rune,
+	envVarBuffer *[]rune,
+	nextRune rune,
+) (*Token, error) {
+	if nextRuneType != unknownRuneClass {
+		if env, ok := t.envsHolder.Vars[string(*envVarBuffer)]; ok {
+			*value = append(*value, []rune(env)...)
+		}
+		*envVarBuffer = []rune{}
+		t.statesStack.Pop()
+		return t.handleRune(tokenType, nextRuneType, value, envVarBuffer, nextRune)
+	} else {
+		*envVarBuffer = append(*envVarBuffer, nextRune)
+	}
+	return nil, nil
+}
+
+func (t *Tokenizer) handleRune(
+	tokenType *TokenType,
+	nextRuneType runeTokenClass,
+	value *[]rune,
+	envVarBuffer *[]rune,
+	nextRune rune,
+) (*Token, error) {
+	switch t.statesStack.CurrentState() {
+	case startState:
+		{
+			t.handleStartState(tokenType, nextRuneType, value, nextRune)
+			if t.isEnded {
+				return nil, io.EOF
+			}
+		}
+	case inWordState:
+		{
+			if t.handleInWordState(nextRuneType, value, nextRune) {
+				var token *Token
+				if len(*value) != 0 {
+					token = &Token{
+						TokenType: *tokenType,
+						Value:     string(*value)}
+				} else {
+					token = nil
+				}
+
+				var err error = nil
+				if t.isEnded {
+					err = io.EOF
+				}
+				return token, err
+			}
+		}
+	case escapingState:
+		{
+			if t.handleEscapingState(nextRuneType, value, nextRune) {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found after escape character")
+			}
+		}
+	case escapingQuotedState:
+		{
+			if t.handleEscapingQuotedState(nextRuneType, value, nextRune) {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found after escape character")
+			}
+		}
+	case quotingEscapingState:
+		{
+			if t.handleQuotingEscapingState(nextRuneType, value, nextRune) {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found when expecting closing quote")
+			}
+		}
+	case quotingState:
+		{
+			if t.handleQuotingState(nextRuneType, value, nextRune) {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found when expecting closing quote")
+			}
+		}
+	case commentState:
+		{
+			if !t.handleCommentState(nextRuneType, value, nextRune) {
+				return nil, nil
+			}
+
+			if t.isEnded {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, io.EOF
+			} else {
+				return &Token{TokenType: EndLineToken, Value: endLineRunes}, nil
+			}
+		}
+	case enviromentVariableState:
+		{
+			return t.handleEnviromentVariableState(tokenType, nextRuneType, value, envVarBuffer, nextRune)
+		}
+	}
+
+	return nil, nil
+}
+
 func (t *Tokenizer) scanStream() (*Token, error) {
-	//var envVarBuffer []rune
 	var tokenType TokenType
 	var value []rune
 	var nextRune rune
+	var envVarBuffer []rune
 	var nextRuneType runeTokenClass
 	var err error
 
@@ -362,15 +478,8 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 		return nil, io.EOF
 	}
 
-	var state lexerState
-
 	for {
-		// Определяем текущий стейт
-		if t.statesStack.IsEmpty() {
-			state = startState
-		} else {
-			state = t.statesStack.Top()
-		}
+		state := t.statesStack.CurrentState()
 
 		// Токен может быть получен на прошлой итерации, если так отдаем его
 		if state == pipeSymbolState {
@@ -395,79 +504,11 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 			return nil, err
 		}
 
-		// Обработать текущий символ в контексте текущего состояния
-		switch state {
-		case startState:
-			{
-				t.handleStartState(&tokenType, nextRuneType, &value, nextRune)
-				if t.isEnded {
-					return nil, io.EOF
-				}
-			}
-		case inWordState:
-			{
-				if t.handleInWordState(nextRuneType, &value, nextRune) {
-					token := &Token{
-						TokenType: tokenType,
-						Value:     string(value)}
-					return token, nil
-				}
-			}
-		case escapingState:
-			{
-				if t.handleEscapingState(nextRuneType, &value, nextRune) {
-					token := &Token{
-						TokenType: tokenType,
-						Value:     string(value)}
-					return token, fmt.Errorf("EOF found after escape character")
-				}
-			}
-		case escapingQuotedState:
-			{
-				if t.handleEscapingQuotedState(nextRuneType, &value, nextRune) {
-					token := &Token{
-						TokenType: tokenType,
-						Value:     string(value)}
-					return token, fmt.Errorf("EOF found after escape character")
-				}
-			}
-		case quotingEscapingState:
-			{
-				if t.handleQuotingEscapingState(nextRuneType, &value, nextRune) {
-					token := &Token{
-						TokenType: tokenType,
-						Value:     string(value)}
-					return token, fmt.Errorf("EOF found when expecting closing quote")
-				}
-			}
-		case quotingState:
-			{
-				if t.handleQuotingState(nextRuneType, &value, nextRune) {
-					token := &Token{
-						TokenType: tokenType,
-						Value:     string(value)}
-					return token, fmt.Errorf("EOF found when expecting closing quote")
-				}
-			}
-		case commentState:
-			{
-				if !t.handleCommentState(nextRuneType, &value, nextRune) {
-					continue
-				}
+		// Обработать текущий символ в контексте текущего состояни
+		token, err := t.handleRune(&tokenType, nextRuneType, &value, &envVarBuffer, nextRune)
 
-				if t.isEnded {
-					token := &Token{
-						TokenType: tokenType,
-						Value:     string(value)}
-					return token, io.EOF
-				} else {
-					return &Token{TokenType: EndLineToken, Value: endLineRunes}, nil
-				}
-			}
-		case enviromentVariableState:
-			{
-
-			}
+		if token != nil || err != nil {
+			return token, err
 		}
 	}
 }

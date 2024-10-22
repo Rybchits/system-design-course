@@ -10,9 +10,9 @@ type Parser struct {
 	tokenizer *Tokenizer
 }
 
-func NewParser(read io.Reader) *Parser {
+func NewParser(tokenizer *Tokenizer) *Parser {
 	return &Parser{
-		tokenizer: NewTokenizer(read),
+		tokenizer: tokenizer,
 	}
 }
 
