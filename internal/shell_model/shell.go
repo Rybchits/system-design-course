@@ -27,7 +27,8 @@ func (self *Shell) ShellLoop(input *os.File, output *os.File, to_greet bool) {
 		if to_greet {
 			output.WriteString("$ ")
 		}
-		curr_parser := parser.NewParser(input)
+		tokenizer := parser.NewTokenizer(input, &envsholder.GlobalEnv)
+		curr_parser := parser.NewParser(tokenizer)
 		commands, err := curr_parser.Parse()
 		if err == io.EOF {
 			return

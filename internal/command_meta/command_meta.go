@@ -18,7 +18,7 @@ type CommandMeta struct {
 }
 
 func (m *CommandMeta) IsEmpty() bool {
-	return m.Name == ""
+	return m.Name == "" && len(m.Envs.Vars) == 0
 }
 
 func (m *CommandMeta) Equal(r *CommandMeta) bool {

@@ -10,7 +10,9 @@ import (
 
 func TestComplexEnvs(t *testing.T) {
 	s := "x=\"once upon\"=\"a\" y=\"a time\" bash -c 'echo $x $y'\n"
-	parser := NewParser(strings.NewReader(s))
+	vars := envsholder.Env{}
+	tokenizer := NewTokenizer(strings.NewReader(s), &vars)
+	parser := NewParser(tokenizer)
 	commands, err := parser.Parse()
 	if err != nil {
 		t.Fail()

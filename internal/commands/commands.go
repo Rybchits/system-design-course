@@ -36,6 +36,8 @@ func (f *CommandFactory) CommandFromMeta(meta command_meta.CommandMeta, in *os.F
 		return PwdCommand{in, out, meta}
 	case "exit":
 		return ExitCommand{in, out, meta}
+	case "":
+		return SetGlobalEnvCommand{in, out, meta}
 	default:
 		return ProcessCommand{in, out, meta}
 	}
@@ -232,5 +234,23 @@ type ExitCommand struct {
 // Команда exit завершает исполнение процесса shell.
 func (cmd ExitCommand) Execute() error {
 	os.Exit(0)
+	return nil
+}
+
+//////////////////////////////////
+
+// Установка переменных окружения в глобальной области видимости.
+// Дескрипторами файлов данная структура не владеет.
+type SetGlobalEnvCommand struct {
+	input  *os.File
+	output *os.File
+	meta   command_meta.CommandMeta
+}
+
+// Данная команда устанавливает переданные переменные окружения в глобальное хранилище.
+func (cmd SetGlobalEnvCommand) Execute() error {
+	for k, v := range cmd.meta.Envs.Vars {
+		envsholder.GlobalEnv.Set(k, v);
+	}
 	return nil
 }
