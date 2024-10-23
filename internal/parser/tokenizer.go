@@ -99,11 +99,21 @@ func (t tokenClassifier) ClassifyRune(runeVal rune) runeTokenClass {
 }
 
 type Tokenizer struct {
-	input       bufio.Reader
-	classifier  tokenClassifier
-	statesStack LexerStateStack
-	envsHolder  *envsholder.Env
-	isEnded     bool
+	input             bufio.Reader
+	classifier        tokenClassifier
+	statesStack       lexerStateStack
+	envsHolder        *envsholder.Env
+	isEnded           bool
+	currentTokenState *getTokenState
+}
+
+type getTokenState struct {
+	tokenType    TokenType
+	nextRuneType runeTokenClass
+	nextRune     rune
+	value        []rune
+	envVarBuffer []rune
+	err          error
 }
 
 func NewTokenizer(r io.Reader, vars *envsholder.Env) *Tokenizer {
@@ -118,11 +128,11 @@ func NewTokenizer(r io.Reader, vars *envsholder.Env) *Tokenizer {
 	}
 }
 
-func (t *Tokenizer) handleInWordState(
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) bool {
+func (t *Tokenizer) handleInWordState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -170,11 +180,11 @@ func (t *Tokenizer) handleInWordState(
 	return false
 }
 
-func (t *Tokenizer) handleEscapingState(
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) bool {
+func (t *Tokenizer) handleEscapingState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -190,11 +200,11 @@ func (t *Tokenizer) handleEscapingState(
 	return false
 }
 
-func (t *Tokenizer) handleEscapingQuotedState(
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) bool {
+func (t *Tokenizer) handleEscapingQuotedState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -210,11 +220,11 @@ func (t *Tokenizer) handleEscapingQuotedState(
 	return false
 }
 
-func (t *Tokenizer) handleQuotingEscapingState(
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) bool {
+func (t *Tokenizer) handleQuotingEscapingState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -241,11 +251,11 @@ func (t *Tokenizer) handleQuotingEscapingState(
 	return false
 }
 
-func (t *Tokenizer) handleQuotingState(
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) bool {
+func (t *Tokenizer) handleQuotingState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -264,11 +274,11 @@ func (t *Tokenizer) handleQuotingState(
 	return false
 }
 
-func (t *Tokenizer) handleCommentState(
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) bool {
+func (t *Tokenizer) handleCommentState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -292,12 +302,12 @@ func (t *Tokenizer) handleCommentState(
 	return false
 }
 
-func (t *Tokenizer) handleStartState(
-	tokenType *TokenType,
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	nextRune rune,
-) {
+func (t *Tokenizer) handleStartState() {
+	tokenType := &t.currentTokenState.tokenType
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
 	switch nextRuneType {
 	case eofRuneClass:
 		{
@@ -352,44 +362,40 @@ func (t *Tokenizer) handleStartState(
 	}
 }
 
-func (t *Tokenizer) handleEnviromentVariableState(
-	tokenType *TokenType,
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	envVarBuffer *[]rune,
-	nextRune rune,
-) (*Token, error) {
+func (t *Tokenizer) handleEnviromentVariableState() (*Token, error) {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	envVarBuffer := &t.currentTokenState.envVarBuffer
+	nextRune := t.currentTokenState.nextRune
+
 	if nextRuneType != unknownRuneClass {
 		if env, ok := t.envsHolder.Vars[string(*envVarBuffer)]; ok {
 			*value = append(*value, []rune(env)...)
 		}
 		*envVarBuffer = []rune{}
 		t.statesStack.Pop()
-		return t.handleRune(tokenType, nextRuneType, value, envVarBuffer, nextRune)
+		return t.handleRune()
 	} else {
 		*envVarBuffer = append(*envVarBuffer, nextRune)
 	}
 	return nil, nil
 }
 
-func (t *Tokenizer) handleRune(
-	tokenType *TokenType,
-	nextRuneType runeTokenClass,
-	value *[]rune,
-	envVarBuffer *[]rune,
-	nextRune rune,
-) (*Token, error) {
+func (t *Tokenizer) handleRune() (*Token, error) {
+	tokenType := &t.currentTokenState.tokenType
+	value := &t.currentTokenState.value
+
 	switch t.statesStack.CurrentState() {
 	case startState:
 		{
-			t.handleStartState(tokenType, nextRuneType, value, nextRune)
+			t.handleStartState()
 			if t.isEnded {
 				return nil, io.EOF
 			}
 		}
 	case inWordState:
 		{
-			if t.handleInWordState(nextRuneType, value, nextRune) {
+			if t.handleInWordState() {
 				var token *Token
 				if len(*value) != 0 {
 					token = &Token{
@@ -408,7 +414,7 @@ func (t *Tokenizer) handleRune(
 		}
 	case escapingState:
 		{
-			if t.handleEscapingState(nextRuneType, value, nextRune) {
+			if t.handleEscapingState() {
 				token := &Token{
 					TokenType: *tokenType,
 					Value:     string(*value)}
@@ -417,7 +423,7 @@ func (t *Tokenizer) handleRune(
 		}
 	case escapingQuotedState:
 		{
-			if t.handleEscapingQuotedState(nextRuneType, value, nextRune) {
+			if t.handleEscapingQuotedState() {
 				token := &Token{
 					TokenType: *tokenType,
 					Value:     string(*value)}
@@ -426,7 +432,7 @@ func (t *Tokenizer) handleRune(
 		}
 	case quotingEscapingState:
 		{
-			if t.handleQuotingEscapingState(nextRuneType, value, nextRune) {
+			if t.handleQuotingEscapingState() {
 				token := &Token{
 					TokenType: *tokenType,
 					Value:     string(*value)}
@@ -435,7 +441,7 @@ func (t *Tokenizer) handleRune(
 		}
 	case quotingState:
 		{
-			if t.handleQuotingState(nextRuneType, value, nextRune) {
+			if t.handleQuotingState() {
 				token := &Token{
 					TokenType: *tokenType,
 					Value:     string(*value)}
@@ -444,7 +450,7 @@ func (t *Tokenizer) handleRune(
 		}
 	case commentState:
 		{
-			if !t.handleCommentState(nextRuneType, value, nextRune) {
+			if !t.handleCommentState() {
 				return nil, nil
 			}
 
@@ -459,20 +465,14 @@ func (t *Tokenizer) handleRune(
 		}
 	case enviromentVariableState:
 		{
-			return t.handleEnviromentVariableState(tokenType, nextRuneType, value, envVarBuffer, nextRune)
+			return t.handleEnviromentVariableState()
 		}
 	}
-
 	return nil, nil
 }
 
 func (t *Tokenizer) scanStream() (*Token, error) {
-	var tokenType TokenType
-	var value []rune
-	var nextRune rune
-	var envVarBuffer []rune
-	var nextRuneType runeTokenClass
-	var err error
+	t.currentTokenState = &getTokenState{}
 
 	if t.isEnded {
 		return nil, io.EOF
@@ -492,22 +492,23 @@ func (t *Tokenizer) scanStream() (*Token, error) {
 		}
 
 		// Читаем следующий символ и классифицируем его
-		nextRune, _, err = t.input.ReadRune()
-		nextRuneType = t.classifier.ClassifyRune(nextRune)
+		t.currentTokenState.nextRune, _, t.currentTokenState.err = t.input.ReadRune()
+		t.currentTokenState.nextRuneType = t.classifier.ClassifyRune(t.currentTokenState.nextRune)
 
 		// Если произошла ошибка при чтении, вернуть ошибку
-		if err == io.EOF {
-			nextRuneType = eofRuneClass
-			err = nil
+		if t.currentTokenState.err == io.EOF {
+			t.currentTokenState.nextRuneType = eofRuneClass
+			t.currentTokenState.err = nil
 
-		} else if err != nil {
-			return nil, err
+		} else if t.currentTokenState.err != nil {
+			return nil, t.currentTokenState.err
 		}
 
 		// Обработать текущий символ в контексте текущего состояни
-		token, err := t.handleRune(&tokenType, nextRuneType, &value, &envVarBuffer, nextRune)
+		token, err := t.handleRune()
 
 		if token != nil || err != nil {
+			t.currentTokenState = nil
 			return token, err
 		}
 	}

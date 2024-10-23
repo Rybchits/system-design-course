@@ -1,20 +1,20 @@
 package parser
 
-type LexerStateStack struct {
+type lexerStateStack struct {
 	items []lexerState
 }
 
-func NewEmptyStack() *LexerStateStack {
-	return &LexerStateStack{
+func NewEmptyStack() *lexerStateStack {
+	return &lexerStateStack{
 		items: nil,
 	}
 }
 
-func (stack *LexerStateStack) Push(item lexerState) {
+func (stack *lexerStateStack) Push(item lexerState) {
 	stack.items = append(stack.items, item)
 }
 
-func (stack *LexerStateStack) Pop() lexerState {
+func (stack *lexerStateStack) Pop() lexerState {
 	if len(stack.items) == 0 {
 		panic("Empty stack")
 	}
@@ -25,11 +25,11 @@ func (stack *LexerStateStack) Pop() lexerState {
 	return lastItem
 }
 
-func (stack *LexerStateStack) IsEmpty() bool {
+func (stack *lexerStateStack) IsEmpty() bool {
 	return len(stack.items) == 0
 }
 
-func (stack *LexerStateStack) CurrentState() lexerState {
+func (stack *lexerStateStack) CurrentState() lexerState {
 	if stack.IsEmpty() {
 		return startState
 	}
