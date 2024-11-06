@@ -68,7 +68,6 @@ func (cmd WcCommand) Execute() error {
 		filename = cmd.meta.Args[0]
 		file, err := os.Open(filename)
 		if err != nil {
-			fmt.Printf("wc: Failed to open file with err: %s\n", err)
 			return err
 		}
 		in = file
@@ -93,7 +92,6 @@ func (cmd WcCommand) Execute() error {
 	}
 
 	if _, err := cmd.output.Write(buffer); err != nil {
-		fmt.Printf("wc: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -141,7 +139,6 @@ func (cmd CatCommand) Execute() error {
 	}
 
 	if err != nil {
-		fmt.Printf("cat: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -164,7 +161,6 @@ func (cmd EchoCommand) Execute() error {
 	buffer := []byte(strings.Join(cmd.meta.Args, " "))
 	buffer = append(buffer, '\n')
 	if _, err := cmd.output.Write(buffer); err != nil {
-		fmt.Printf("echo: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -186,13 +182,11 @@ type PwdCommand struct {
 func (cmd PwdCommand) Execute() error {
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("pwd: Failed to read current directory path with err: %s\n", err)
 		return err
 	}
 
 	buffer := []byte(dir)
 	if _, err := cmd.output.Write(buffer); err != nil {
-		fmt.Printf("pwd: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -220,7 +214,6 @@ func (cmd ProcessCommand) Execute() error {
 	process.Env = append(process.Env, envsholder.GlobalEnv.Environ()...)
 	err := process.Run()
 	if err != nil {
-		fmt.Printf("process: Failed to process command with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -275,7 +268,6 @@ func (cmd GrepCommand) Execute() error {
 
 	_, err := parser.ParseArgs(cmd.meta.Args)
 	if err != nil {
-		fmt.Printf("grep: Failed to parse arguments: %s\n", err)
 		return err
 	}
 
@@ -284,7 +276,6 @@ func (cmd GrepCommand) Execute() error {
 	if opts.Positional.Filename != "" {
 		input, err = os.Open(opts.Positional.Filename)
 		if err != nil {
-			fmt.Printf("grep: Failed to open file: %s\n", err)
 			return err
 		}
 	}
@@ -297,7 +288,6 @@ func (cmd GrepCommand) Execute() error {
 
 	regexpr, err := regexp.Compile(expr)
 	if err != nil {
-		fmt.Printf("grep: Failed to parse regexp: %s\n", err)
 		return err
 	}
 
@@ -321,7 +311,6 @@ func (cmd GrepCommand) Execute() error {
 		if includeLine {
 			bytes := []byte(fmt.Sprintf("%s\n", scanner.Bytes()))
 			if _, err := cmd.output.Write(bytes); err != nil {
-				fmt.Printf("grep: Failed to output line: %s\n", err)
 				return err
 			}
 		}
