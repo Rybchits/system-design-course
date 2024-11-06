@@ -6,9 +6,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
+	"regexp"
 	"shell/internal/command_meta"
 	envsholder "shell/internal/envs_holder"
+	"strings"
+
+	"github.com/jessevdk/go-flags"
 )
 
 // Интерфейс, который реализуют все команды,
@@ -36,6 +39,8 @@ func (f *CommandFactory) CommandFromMeta(meta command_meta.CommandMeta, in *os.F
 		return PwdCommand{in, out, meta}
 	case "exit":
 		return ExitCommand{in, out, meta}
+	case "grep":
+		return GrepCommand{in, out, meta}
 	case "":
 		return SetGlobalEnvCommand{in, out, meta}
 	default:
@@ -80,7 +85,7 @@ func (cmd WcCommand) Execute() error {
 		byteCount += len(scanner.Text()) + 1
 	}
 
-	buffer := []byte{}
+	var buffer []byte
 	if len(filename) != 0 {
 		buffer = []byte(fmt.Sprintf("\t%d\t%d\t%d\t%s\n", lineCount, wordCount, byteCount, filename))
 	} else {
@@ -108,7 +113,7 @@ type CatCommand struct {
 // Имя файла берется из метаданных команды.
 // Результат работы выводится в файл, который представлен дескриптором output.
 func (cmd CatCommand) Execute() error {
-	in := cmd.input
+	var in *os.File
 	var err error = nil
 
 	if len(cmd.meta.Args) != 0 {
@@ -239,6 +244,81 @@ func (cmd ExitCommand) Execute() error {
 
 //////////////////////////////////
 
+// Команда grep.
+// TODO: описание
+type GrepCommand struct {
+	input  *os.File
+	output *os.File
+	meta   command_meta.CommandMeta
+}
+
+type GrepOptions struct {
+	OnlyWholeWords        bool `short:"w"`
+	CaseInsensetive       bool `short:"i"`
+	NextLinesToIncludeNum int  `short:"A" default:"0"`
+
+	Positional struct {
+		Expr string `required:"true"`
+	} `positional-args:"true"`
+}
+
+// Команда exit завершает исполнение процесса shell.
+func (cmd GrepCommand) Execute() error {
+	var opts GrepOptions
+	parser_options := flags.Options(flags.PrintErrors | flags.IgnoreUnknown)
+	parser := flags.NewParser(&opts, parser_options)
+
+	_, err := parser.ParseArgs(cmd.meta.Args)
+	if err != nil {
+		fmt.Printf("grep: Failed to parse arguments: %s\n", err)
+		return err
+	}
+
+	expr := opts.Positional.Expr
+	if opts.OnlyWholeWords {
+		expr = fmt.Sprintf("([^[:alnum:]_.]|^)%s([^[:alnum:]_.]|$)", expr)
+	}
+	if opts.CaseInsensetive {
+		expr = fmt.Sprintf("(?i)%s", expr)
+	}
+
+	regexpr, err := regexp.Compile(expr)
+	if err != nil {
+		fmt.Printf("grep: Failed to parse regexp: %s\n", err)
+		return err
+	}
+
+	remaining_lines := 0
+	scanner := bufio.NewScanner(cmd.input)
+
+	for scanner.Scan() {
+		includeLine := false
+
+		if remaining_lines > 0 {
+			remaining_lines -= 1
+			includeLine = true
+		}
+
+		match := regexpr.Match(scanner.Bytes())
+		if match {
+			remaining_lines = opts.NextLinesToIncludeNum
+			includeLine = true
+		}
+
+		if includeLine {
+			bytes := []byte(fmt.Sprintf("%s\n", scanner.Bytes()))
+			if _, err := cmd.output.Write(bytes); err != nil {
+				fmt.Printf("grep: Failed to output line: %s\n", err)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+//////////////////////////////////
+
 // Установка переменных окружения в глобальной области видимости.
 // Дескрипторами файлов данная структура не владеет.
 type SetGlobalEnvCommand struct {
@@ -250,7 +330,7 @@ type SetGlobalEnvCommand struct {
 // Данная команда устанавливает переданные переменные окружения в глобальное хранилище.
 func (cmd SetGlobalEnvCommand) Execute() error {
 	for k, v := range cmd.meta.Envs.Vars {
-		envsholder.GlobalEnv.Set(k, v);
+		envsholder.GlobalEnv.Set(k, v)
 	}
 	return nil
 }
