@@ -245,24 +245,29 @@ func (cmd ExitCommand) Execute() error {
 //////////////////////////////////
 
 // Команда grep.
-// TODO: описание
+// Дескрипторами файлов данная структура не владеет.
 type GrepCommand struct {
 	input  *os.File
 	output *os.File
 	meta   command_meta.CommandMeta
 }
 
+// Аргументы команды grep.
 type GrepOptions struct {
 	OnlyWholeWords        bool `short:"w"`
 	CaseInsensetive       bool `short:"i"`
 	NextLinesToIncludeNum int  `short:"A" default:"0"`
 
 	Positional struct {
-		Expr string `required:"true"`
+		Expr     string `required:"true"`
+		Filename string
 	} `positional-args:"true"`
 }
 
-// Команда exit завершает исполнение процесса shell.
+// Команда grep выводит отфильтрованное по регулярному выражению содержимое,
+// переданное в дескриптор input.
+// Регулярное выражение передается первым аргументом из метаданных команды.
+// Результат работы выводится в файл, представленный дескриптором output.
 func (cmd GrepCommand) Execute() error {
 	var opts GrepOptions
 	parser_options := flags.Options(flags.PrintErrors | flags.IgnoreUnknown)
@@ -275,6 +280,14 @@ func (cmd GrepCommand) Execute() error {
 	}
 
 	expr := opts.Positional.Expr
+	input := cmd.input
+	if opts.Positional.Filename != "" {
+		input, err = os.Open(opts.Positional.Filename)
+		if err != nil {
+			fmt.Printf("grep: Failed to open file: %s\n", err)
+			return err
+		}
+	}
 	if opts.OnlyWholeWords {
 		expr = fmt.Sprintf("([^[:alnum:]_.]|^)%s([^[:alnum:]_.]|$)", expr)
 	}
@@ -289,7 +302,7 @@ func (cmd GrepCommand) Execute() error {
 	}
 
 	remaining_lines := 0
-	scanner := bufio.NewScanner(cmd.input)
+	scanner := bufio.NewScanner(input)
 
 	for scanner.Scan() {
 		includeLine := false
