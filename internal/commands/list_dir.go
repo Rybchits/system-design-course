@@ -99,14 +99,15 @@ func permissionString(mode os.FileMode) string {
 
 	// Loop through the roles (owner, group, others)
 	for i, role := range roles {
-		offset := i * 3
-		if mode&(1<<(8-offset)) != 0 {
+		
+		offset := 8 - i * 3 // смещение старшего бита группы
+		if mode&(1<<(offset)) != 0 {
 			perm[role.read] = 'r'
 		}
-		if mode&(1<<(7-offset)) != 0 {
+		if mode&(1<<(offset-1)) != 0 {
 			perm[role.write] = 'w'
 		}
-		if mode&(1<<(6-offset)) != 0 {
+		if mode&(1<<(offset-2)) != 0 {
 			perm[role.exec] = 'x'
 		}
 	}
