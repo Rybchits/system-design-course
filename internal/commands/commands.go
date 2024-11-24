@@ -10,8 +10,6 @@ import (
 	"shell/internal/command_meta"
 	envsholder "shell/internal/envs_holder"
 	"strings"
-
-	"github.com/jessevdk/go-flags"
 )
 
 // Интерфейс, который реализуют все команды,
@@ -41,6 +39,10 @@ func (f *CommandFactory) CommandFromMeta(meta command_meta.CommandMeta, in *os.F
 		return ExitCommand{in, out, meta}
 	case "grep":
 		return GrepCommand{in, out, meta}
+	case "cd":
+		return ChangeDirCommand{meta}
+	case "ls":
+		return ListDirCommand{out, meta}
 	case "":
 		return SetGlobalEnvCommand{in, out, meta}
 	default:
@@ -263,10 +265,7 @@ type GrepOptions struct {
 // Результат работы выводится в файл, представленный дескриптором output.
 func (cmd GrepCommand) Execute() error {
 	var opts GrepOptions
-	parser_options := flags.Options(flags.PrintErrors | flags.IgnoreUnknown)
-	parser := flags.NewParser(&opts, parser_options)
-
-	_, err := parser.ParseArgs(cmd.meta.Args)
+	err := arg_parse(&opts, cmd.meta.Args)
 	if err != nil {
 		return err
 	}
