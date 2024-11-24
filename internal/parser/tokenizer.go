@@ -369,7 +369,10 @@ func (t *Tokenizer) handleEnviromentVariableState() (*Token, error) {
 	nextRune := t.currentTokenState.nextRune
 
 	if nextRuneType != unknownRuneClass {
-		if env, ok := t.envsHolder.Vars[string(*envVarBuffer)]; ok {
+		name := string(*envVarBuffer)
+		if name == "" {
+			*value = append(*value, '$')
+		} else if env, ok := t.envsHolder.Vars[name]; ok {
 			*value = append(*value, []rune(env)...)
 		}
 		*envVarBuffer = []rune{}

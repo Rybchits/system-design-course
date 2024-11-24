@@ -44,7 +44,7 @@ func (self *Shell) ShellLoop(input *os.File, output *os.File, to_greet bool) {
 		err = pipeline.Execute()
 		if err != nil {
 			envsholder.GlobalEnv.Set(envsholder.ExecStatusKey, "1")
-			fmt.Printf("Issue running pipeline %s\n", err)
+			fmt.Printf("%s\n", err)
 		}
 	}
 }

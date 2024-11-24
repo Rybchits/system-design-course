@@ -381,3 +381,194 @@ func TestSetEnvs(t *testing.T) {
 		t.Fatalf(`Different outputs: %q != %q`, val, expected)
 	}
 }
+
+//////////////////////////////////
+
+func TestGrepExecuteWholeWord(t *testing.T) {
+	input := "" +
+		"word0 word1 word2 word3\n" +
+		"word2 word3\n" +
+		"wOrd1\n" +
+		"wrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word5\n" +
+		"word4\n" +
+		"word3\n" +
+		"word2\n" +
+		"word1\n" +
+		"word0\n" +
+		"word-1\n" +
+		"word-2\n" +
+		""
+	expected := "" +
+		"word0 word1 word2 word3\n" +
+		"word1\n" +
+		""
+	args := make([]string, 0)
+	args = append(args, "word1")
+	args = append(args, "-w")
+
+	RunGrepTest(t, input, expected, args)
+}
+
+func TestGrepExecuteRegexp(t *testing.T) {
+	input := "" +
+		"word0 word1 word2 word3\n" +
+		"word2 word3\n" +
+		"wOrd1\n" +
+		"wrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word5\n" +
+		"word4\n" +
+		"word3\n" +
+		"word2\n" +
+		"word1\n" +
+		"word0\n" +
+		"word-1\n" +
+		"word-2\n" +
+		""
+	expected := "" +
+		"word0 word1 word2 word3\n" +
+		"wOrd1\n" +
+		"wrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word1\n" +
+		""
+	args := make([]string, 0)
+	args = append(args, "w[oO]?rd1")
+
+	RunGrepTest(t, input, expected, args)
+}
+
+func TestGrepExecuteSimple(t *testing.T) {
+	input := "" +
+
+		"word0 word1 word2 word3\n" +
+		"word2 word3\n" +
+		"wOrd1\n" +
+		"wrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word5\n" +
+		"word4\n" +
+		"word3\n" +
+		"word2\n" +
+		"word1\n" +
+		"word0\n" +
+		"word-1\n" +
+		"word-2\n" +
+		""
+	expected := "" +
+		"word0 word1 word2 word3\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word1\n" +
+		""
+	args := make([]string, 0)
+	args = append(args, "word1")
+
+	RunGrepTest(t, input, expected, args)
+}
+
+func TestGrepExecuteCaseInsensetive(t *testing.T) {
+	input := "" +
+		"word0 word1 word2 word3\n" +
+		"word2 word3\n" +
+		"wOrd1\n" +
+		"wrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word5\n" +
+		"word4\n" +
+		"word3\n" +
+		"word2\n" +
+		"word1\n" +
+		"word0\n" +
+		"word-1\n" +
+		"word-2\n" +
+		""
+	expected := "" +
+		"word0 word1 word2 word3\n" +
+		"wOrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word1\n" +
+		""
+	args := make([]string, 0)
+	args = append(args, "word1")
+	args = append(args, "-i")
+
+	RunGrepTest(t, input, expected, args)
+}
+
+func TestGrepExecuteNextLines(t *testing.T) {
+	input := "" +
+		"word0 word1 word2 word3\n" +
+		"word2 word3\n" +
+		"wOrd1\n" +
+		"wrd1\n" +
+		"wword1\n" +
+		"word11\n" +
+		"word5\n" +
+		"word4\n" +
+		"word3\n" +
+		"word2\n" +
+		"word1\n" +
+		"word0\n" +
+		"word-1\n" +
+		"word-2\n" +
+		""
+	expected := "" +
+		"word5\n" +
+		"word4\n" +
+		"word3\n" +
+		"word2\n" +
+		"word1\n" +
+		"word0\n" +
+		""
+	args := make([]string, 0)
+	args = append(args, "word5")
+	args = append(args, "-A=5")
+
+	RunGrepTest(t, input, expected, args)
+}
+
+func RunGrepTest(t *testing.T, input string, expected string, args []string) {
+	file, err := ioutil.TempFile(os.TempDir(), "test")
+	if err != nil {
+		t.Fatal("Cant create temp file", err)
+	}
+	defer os.Remove(file.Name())
+	file.Write([]byte(input))
+
+	meta := command_meta.CommandMeta{Name: "grep", Args: args}
+
+	rp, wp, err := os.Pipe()
+	if err != nil {
+		t.Fatal("Cant create pipe", err)
+	}
+	defer rp.Close()
+
+	cmd := GrepCommand{file, wp, meta}
+
+	file.Sync()
+	file.Seek(0, io.SeekStart)
+	if err := cmd.Execute(); err != nil {
+		t.Fatal("Cant grep", err)
+	}
+	wp.Close()
+	file.Close()
+
+	buf := make([]byte, 512)
+	n, err := rp.Read(buf[:512])
+	buf = buf[:n]
+	if n == 0 {
+		t.Fatal("Cant read buffer", err)
+	}
+	if !bytes.Equal(buf, []byte(expected)) {
+		t.Fatalf(`Different outputs: %q != %q`, buf, expected)
+	}
+}
