@@ -6,9 +6,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
+	"regexp"
 	"shell/internal/command_meta"
 	envsholder "shell/internal/envs_holder"
+	"strings"
 )
 
 // Интерфейс, который реализуют все команды,
@@ -36,6 +37,14 @@ func (f *CommandFactory) CommandFromMeta(meta command_meta.CommandMeta, in *os.F
 		return PwdCommand{in, out, meta}
 	case "exit":
 		return ExitCommand{in, out, meta}
+	case "grep":
+		return GrepCommand{in, out, meta}
+	case "cd":
+		return ChangeDirCommand{meta}
+	case "ls":
+		return ListDirCommand{out, meta}
+	case "":
+		return SetGlobalEnvCommand{in, out, meta}
 	default:
 		return ProcessCommand{in, out, meta}
 	}
@@ -61,7 +70,6 @@ func (cmd WcCommand) Execute() error {
 		filename = cmd.meta.Args[0]
 		file, err := os.Open(filename)
 		if err != nil {
-			fmt.Printf("wc: Failed to open file with err: %s\n", err)
 			return err
 		}
 		in = file
@@ -78,7 +86,7 @@ func (cmd WcCommand) Execute() error {
 		byteCount += len(scanner.Text()) + 1
 	}
 
-	buffer := []byte{}
+	var buffer []byte
 	if len(filename) != 0 {
 		buffer = []byte(fmt.Sprintf("\t%d\t%d\t%d\t%s\n", lineCount, wordCount, byteCount, filename))
 	} else {
@@ -86,7 +94,6 @@ func (cmd WcCommand) Execute() error {
 	}
 
 	if _, err := cmd.output.Write(buffer); err != nil {
-		fmt.Printf("wc: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -106,7 +113,7 @@ type CatCommand struct {
 // Имя файла берется из метаданных команды.
 // Результат работы выводится в файл, который представлен дескриптором output.
 func (cmd CatCommand) Execute() error {
-	in := cmd.input
+	var in *os.File
 	var err error = nil
 
 	if len(cmd.meta.Args) != 0 {
@@ -134,7 +141,6 @@ func (cmd CatCommand) Execute() error {
 	}
 
 	if err != nil {
-		fmt.Printf("cat: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -157,7 +163,6 @@ func (cmd EchoCommand) Execute() error {
 	buffer := []byte(strings.Join(cmd.meta.Args, " "))
 	buffer = append(buffer, '\n')
 	if _, err := cmd.output.Write(buffer); err != nil {
-		fmt.Printf("echo: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -179,13 +184,11 @@ type PwdCommand struct {
 func (cmd PwdCommand) Execute() error {
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("pwd: Failed to read current directory path with err: %s\n", err)
 		return err
 	}
 
 	buffer := []byte(dir)
 	if _, err := cmd.output.Write(buffer); err != nil {
-		fmt.Printf("pwd: Failed to write in file with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -213,7 +216,6 @@ func (cmd ProcessCommand) Execute() error {
 	process.Env = append(process.Env, envsholder.GlobalEnv.Environ()...)
 	err := process.Run()
 	if err != nil {
-		fmt.Printf("process: Failed to process command with err: %s\n", err)
 		return err
 	}
 	return nil
@@ -232,5 +234,104 @@ type ExitCommand struct {
 // Команда exit завершает исполнение процесса shell.
 func (cmd ExitCommand) Execute() error {
 	os.Exit(0)
+	return nil
+}
+
+//////////////////////////////////
+
+// Команда grep.
+// Дескрипторами файлов данная структура не владеет.
+type GrepCommand struct {
+	input  *os.File
+	output *os.File
+	meta   command_meta.CommandMeta
+}
+
+// Аргументы команды grep.
+type GrepOptions struct {
+	OnlyWholeWords        bool `short:"w"`
+	CaseInsensetive       bool `short:"i"`
+	NextLinesToIncludeNum int  `short:"A" default:"0"`
+
+	Positional struct {
+		Expr     string `required:"true"`
+		Filename string
+	} `positional-args:"true"`
+}
+
+// Команда grep выводит отфильтрованное по регулярному выражению содержимое,
+// переданное в дескриптор input.
+// Регулярное выражение передается первым аргументом из метаданных команды.
+// Результат работы выводится в файл, представленный дескриптором output.
+func (cmd GrepCommand) Execute() error {
+	var opts GrepOptions
+	err := arg_parse(&opts, cmd.meta.Args)
+	if err != nil {
+		return err
+	}
+
+	expr := opts.Positional.Expr
+	input := cmd.input
+	if opts.Positional.Filename != "" {
+		input, err = os.Open(opts.Positional.Filename)
+		if err != nil {
+			return err
+		}
+	}
+	if opts.OnlyWholeWords {
+		expr = fmt.Sprintf("([^[:alnum:]_.]|^)%s([^[:alnum:]_.]|$)", expr)
+	}
+	if opts.CaseInsensetive {
+		expr = fmt.Sprintf("(?i)%s", expr)
+	}
+
+	regexpr, err := regexp.Compile(expr)
+	if err != nil {
+		return err
+	}
+
+	remaining_lines := 0
+	scanner := bufio.NewScanner(input)
+
+	for scanner.Scan() {
+		includeLine := false
+
+		if remaining_lines > 0 {
+			remaining_lines -= 1
+			includeLine = true
+		}
+
+		match := regexpr.Match(scanner.Bytes())
+		if match {
+			remaining_lines = opts.NextLinesToIncludeNum
+			includeLine = true
+		}
+
+		if includeLine {
+			bytes := []byte(fmt.Sprintf("%s\n", scanner.Bytes()))
+			if _, err := cmd.output.Write(bytes); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+//////////////////////////////////
+
+// Установка переменных окружения в глобальной области видимости.
+// Дескрипторами файлов данная структура не владеет.
+type SetGlobalEnvCommand struct {
+	input  *os.File
+	output *os.File
+	meta   command_meta.CommandMeta
+}
+
+// Данная команда устанавливает переданные переменные окружения в глобальное хранилище.
+func (cmd SetGlobalEnvCommand) Execute() error {
+	for k, v := range cmd.meta.Envs.Vars {
+		envsholder.GlobalEnv.Set(k, v)
+	}
 	return nil
 }

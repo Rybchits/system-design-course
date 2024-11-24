@@ -4,21 +4,26 @@ import (
 	"io"
 	"shell/internal/command_meta"
 	"strings"
+	"errors"
 )
+
+var ParseError = errors.New("Cannot parse command")
 
 type Parser struct {
 	tokenizer *Tokenizer
 }
 
-func NewParser(read io.Reader) *Parser {
+func NewParser(tokenizer *Tokenizer) *Parser {
 	return &Parser{
-		tokenizer: NewTokenizer(read),
+		tokenizer: tokenizer,
 	}
 }
 
 func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 	pipe := make([]command_meta.CommandMeta, 0)
 	current := command_meta.CommandMeta{}
+	var prev_token TokenType = EndLineToken
+
 	for {
 		token, err := p.tokenizer.Next()
 		if err == nil {
@@ -39,6 +44,9 @@ func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 				}
 			case PipeToken:
 				{
+					if prev_token == EndLineToken {
+						return pipe, ParseError
+					}
 					if !current.IsEmpty() {
 						pipe = append(pipe, current)
 						current = command_meta.CommandMeta{}
@@ -46,12 +54,16 @@ func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 				}
 			case EndLineToken:
 				{
+					if prev_token == PipeToken {
+						return pipe, ParseError
+					}
 					if !current.IsEmpty() {
 						pipe = append(pipe, current)
 					}
 					return pipe, nil
 				}
 			}
+			prev_token = token.TokenType
 		} else if err == io.EOF {
 			return pipe, io.EOF
 		} else {

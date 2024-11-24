@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"strings"
+	envsholder "shell/internal/envs_holder"
 )
 
 type TokenType int
@@ -36,6 +36,7 @@ const (
 	commentRunes          = "#"
 	endLineRunes          = "\n"
 	pipeRunes             = "|"
+	envVarRunes           = "$"
 )
 
 const (
@@ -48,27 +49,28 @@ const (
 	endLineRuneClass
 	pipeRuneClass
 	eofRuneClass
+	envVarClass
 )
 
 const (
 	UnknownToken TokenType = iota
 	WordToken
-	SpaceToken
 	CommentToken
 	EndLineToken
 	PipeToken
 )
 
 const (
-	startState           lexerState = iota // еще не было символов
-	inWordState                            // в процессе определения слова
-	escapingState                          // экранирование, следующий символ должен быть литеральным
-	escapingQuotedState                    // экранирование в заключенной в кавычки строке
-	quotingEscapingState                   // внутри заключенной в кавычки строки, которая поддерживает экранирование
-	quotingState                           // внутри строки, которая не поддерживает экранирование
-	commentState                           // в пределах комментария
-	pipeSymbolState                        // прошлый символ был pipe
-	endLineState                           // прошлый символ был \n
+	startState              lexerState = iota // еще не было символов
+	inWordState                               // в процессе определения слова
+	escapingState                             // экранирование, следующий символ должен быть литеральным
+	escapingQuotedState                       // экранирование в заключенной в кавычки строке
+	quotingEscapingState                      // внутри заключенной в кавычки строки, которая поддерживает экранирование
+	quotingState                              // внутри строки, которая не поддерживает экранирование
+	commentState                              // в пределах комментария
+	pipeSymbolState                           // прошлый символ был pipe
+	endLineState                              // прошлый символ был \n
+	enviromentVariableState                   // внутри имени переменной окружения
 )
 
 type tokenClassifier map[rune]runeTokenClass
@@ -88,6 +90,7 @@ func newDefaultClassifier() tokenClassifier {
 	t.addRuneClass(commentRunes, commentRuneClass)
 	t.addRuneClass(endLineRunes, endLineRuneClass)
 	t.addRuneClass(pipeRunes, pipeRuneClass)
+	t.addRuneClass(envVarRunes, envVarClass)
 	return t
 }
 
@@ -96,303 +99,424 @@ func (t tokenClassifier) ClassifyRune(runeVal rune) runeTokenClass {
 }
 
 type Tokenizer struct {
-	input      bufio.Reader
-	classifier tokenClassifier
-	state      lexerState
-	isEnded    bool
+	input             bufio.Reader
+	classifier        tokenClassifier
+	statesStack       lexerStateStack
+	envsHolder        *envsholder.Env
+	isEnded           bool
+	currentTokenState *getTokenState
 }
 
-func NewTokenizer(r io.Reader) *Tokenizer {
+type getTokenState struct {
+	tokenType    TokenType
+	nextRuneType runeTokenClass
+	nextRune     rune
+	value        []rune
+	envVarBuffer []rune
+	err          error
+}
+
+func NewTokenizer(r io.Reader, vars *envsholder.Env) *Tokenizer {
 	input := bufio.NewReader(r)
-	classifier := newDefaultClassifier()
+
 	return &Tokenizer{
-		input:      *input,
-		classifier: classifier,
-		state:      startState,
-		isEnded:    false,
+		input:       *input,
+		classifier:  newDefaultClassifier(),
+		statesStack: *NewEmptyStack(),
+		envsHolder:  vars,
+		isEnded:     false,
 	}
 }
 
+func (t *Tokenizer) handleInWordState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+			return true
+		}
+	case spaceRuneClass:
+		{
+			t.statesStack.Pop()
+			return true
+		}
+	case escapingQuoteRuneClass:
+		{
+			t.statesStack.Push(quotingEscapingState)
+		}
+	case nonEscapingQuoteRuneClass:
+		{
+			t.statesStack.Push(quotingState)
+		}
+	case escapeRuneClass:
+		{
+			t.statesStack.Push(escapingState)
+		}
+	case envVarClass:
+		{
+			t.statesStack.Push(enviromentVariableState)
+		}
+	case endLineRuneClass:
+		{
+			t.statesStack.Pop()
+			t.statesStack.Push(endLineState)
+			return true
+		}
+	case pipeRuneClass:
+		{
+			t.statesStack.Pop()
+			t.statesStack.Push(pipeSymbolState)
+			return true
+		}
+	default:
+		{
+			*value = append(*value, nextRune)
+		}
+	}
+	return false
+}
+
+func (t *Tokenizer) handleEscapingState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+			return true
+		}
+	default:
+		{
+			t.statesStack.Pop()
+			*value = append(*value, nextRune)
+		}
+	}
+	return false
+}
+
+func (t *Tokenizer) handleEscapingQuotedState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+			return true
+		}
+	default:
+		{
+			t.statesStack.Pop()
+			*value = append(*value, nextRune)
+		}
+	}
+	return false
+}
+
+func (t *Tokenizer) handleQuotingEscapingState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+			return true
+		}
+	case escapingQuoteRuneClass:
+		{
+			t.statesStack.Pop()
+		}
+	case escapeRuneClass:
+		{
+			t.statesStack.Push(escapingQuotedState)
+		}
+	case envVarClass:
+		{
+			t.statesStack.Push(enviromentVariableState)
+		}
+	default:
+		{
+			*value = append(*value, nextRune)
+		}
+	}
+	return false
+}
+
+func (t *Tokenizer) handleQuotingState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+			return true
+		}
+	case nonEscapingQuoteRuneClass:
+		{
+			t.statesStack.Pop()
+		}
+	default:
+		{
+			*value = append(*value, nextRune)
+		}
+	}
+	return false
+}
+
+func (t *Tokenizer) handleCommentState() bool {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+			return true
+		}
+	case endLineRuneClass:
+		{
+			t.statesStack.Pop()
+			return true
+		}
+	case spaceRuneClass:
+		{
+			*value = append(*value, nextRune)
+		}
+	default:
+		{
+			*value = append(*value, nextRune)
+		}
+	}
+	return false
+}
+
+func (t *Tokenizer) handleStartState() {
+	tokenType := &t.currentTokenState.tokenType
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	nextRune := t.currentTokenState.nextRune
+
+	switch nextRuneType {
+	case eofRuneClass:
+		{
+			t.isEnded = true
+		}
+	case spaceRuneClass:
+		{
+		}
+	case escapingQuoteRuneClass:
+		{
+			*tokenType = WordToken
+			t.statesStack.Push(inWordState)
+			t.statesStack.Push(quotingEscapingState)
+		}
+	case nonEscapingQuoteRuneClass:
+		{
+			*tokenType = WordToken
+			t.statesStack.Push(inWordState)
+			t.statesStack.Push(quotingState)
+		}
+	case escapeRuneClass:
+		{
+			*tokenType = WordToken
+			t.statesStack.Push(inWordState)
+			t.statesStack.Push(escapingState)
+		}
+	case envVarClass:
+		{
+			*tokenType = WordToken
+			t.statesStack.Push(inWordState)
+			t.statesStack.Push(enviromentVariableState)
+		}
+	case commentRuneClass:
+		{
+			*tokenType = CommentToken
+			t.statesStack.Push(commentState)
+		}
+	case endLineRuneClass:
+		{
+			t.statesStack.Push(endLineState)
+		}
+	case pipeRuneClass:
+		{
+			t.statesStack.Push(pipeSymbolState)
+		}
+	default:
+		{
+			*tokenType = WordToken
+			t.statesStack.Push(inWordState)
+			*value = append(*value, nextRune)
+		}
+	}
+}
+
+func (t *Tokenizer) handleEnviromentVariableState() (*Token, error) {
+	nextRuneType := t.currentTokenState.nextRuneType
+	value := &t.currentTokenState.value
+	envVarBuffer := &t.currentTokenState.envVarBuffer
+	nextRune := t.currentTokenState.nextRune
+
+	if nextRuneType != unknownRuneClass {
+		name := string(*envVarBuffer)
+		if name == "" {
+			*value = append(*value, '$')
+		} else if env, ok := t.envsHolder.Vars[name]; ok {
+			*value = append(*value, []rune(env)...)
+		}
+		*envVarBuffer = []rune{}
+		t.statesStack.Pop()
+		return t.handleRune()
+	} else {
+		*envVarBuffer = append(*envVarBuffer, nextRune)
+	}
+	return nil, nil
+}
+
+func (t *Tokenizer) handleRune() (*Token, error) {
+	tokenType := &t.currentTokenState.tokenType
+	value := &t.currentTokenState.value
+
+	switch t.statesStack.CurrentState() {
+	case startState:
+		{
+			t.handleStartState()
+			if t.isEnded {
+				return nil, io.EOF
+			}
+		}
+	case inWordState:
+		{
+			if t.handleInWordState() {
+				var token *Token
+				if len(*value) != 0 {
+					token = &Token{
+						TokenType: *tokenType,
+						Value:     string(*value)}
+				} else {
+					token = nil
+				}
+
+				var err error = nil
+				if t.isEnded {
+					err = io.EOF
+				}
+				return token, err
+			}
+		}
+	case escapingState:
+		{
+			if t.handleEscapingState() {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found after escape character")
+			}
+		}
+	case escapingQuotedState:
+		{
+			if t.handleEscapingQuotedState() {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found after escape character")
+			}
+		}
+	case quotingEscapingState:
+		{
+			if t.handleQuotingEscapingState() {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found when expecting closing quote")
+			}
+		}
+	case quotingState:
+		{
+			if t.handleQuotingState() {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, fmt.Errorf("EOF found when expecting closing quote")
+			}
+		}
+	case commentState:
+		{
+			if !t.handleCommentState() {
+				return nil, nil
+			}
+
+			if t.isEnded {
+				token := &Token{
+					TokenType: *tokenType,
+					Value:     string(*value)}
+				return token, io.EOF
+			} else {
+				return &Token{TokenType: EndLineToken, Value: endLineRunes}, nil
+			}
+		}
+	case enviromentVariableState:
+		{
+			return t.handleEnviromentVariableState()
+		}
+	}
+	return nil, nil
+}
+
 func (t *Tokenizer) scanStream() (*Token, error) {
-	var tokenType TokenType
-	var value []rune
-	var nextRune rune
-	var nextRuneType runeTokenClass
-	var err error
+	t.currentTokenState = &getTokenState{}
 
 	if t.isEnded {
 		return nil, io.EOF
 	}
 
 	for {
-		if t.state == pipeSymbolState {
-			t.state = startState
+		state := t.statesStack.CurrentState()
+
+		// Токен может быть получен на прошлой итерации, если так отдаем его
+		if state == pipeSymbolState {
+			t.statesStack.Pop()
 			return &Token{TokenType: PipeToken, Value: pipeRunes}, nil
 
-		} else if t.state == endLineState {
-			t.state = startState
+		} else if state == endLineState {
+			t.statesStack.Pop()
 			return &Token{TokenType: EndLineToken, Value: endLineRunes}, nil
 		}
 
-		nextRune, _, err = t.input.ReadRune()
-		nextRuneType = t.classifier.ClassifyRune(nextRune)
+		// Читаем следующий символ и классифицируем его
+		t.currentTokenState.nextRune, _, t.currentTokenState.err = t.input.ReadRune()
+		t.currentTokenState.nextRuneType = t.classifier.ClassifyRune(t.currentTokenState.nextRune)
 
-		if err == io.EOF {
-			nextRuneType = eofRuneClass
-			err = nil
+		// Если произошла ошибка при чтении, вернуть ошибку
+		if t.currentTokenState.err == io.EOF {
+			t.currentTokenState.nextRuneType = eofRuneClass
+			t.currentTokenState.err = nil
 
-		} else if err != nil {
-			return nil, err
+		} else if t.currentTokenState.err != nil {
+			return nil, t.currentTokenState.err
 		}
 
-		switch t.state {
-		case startState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						t.isEnded = true
-						return nil, io.EOF
-					}
-				case spaceRuneClass:
-					{
-					}
-				case escapingQuoteRuneClass:
-					{
-						tokenType = WordToken
-						t.state = quotingEscapingState
-					}
-				case nonEscapingQuoteRuneClass:
-					{
-						tokenType = WordToken
-						t.state = quotingState
-					}
-				case escapeRuneClass:
-					{
-						tokenType = WordToken
-						t.state = escapingState
-					}
-				case commentRuneClass:
-					{
-						tokenType = CommentToken
-						t.state = commentState
-					}
-				case endLineRuneClass:
-					{
-						token := &Token{
-							TokenType: EndLineToken,
-							Value:     string(nextRune)}
-						return token, nil
-					}
-				case pipeRuneClass:
-					{
-						token := &Token{
-							TokenType: PipeToken,
-							Value:     string(nextRune)}
-						return token, nil
-					}
-				default:
-					{
-						tokenType = WordToken
-						value = append(value, nextRune)
-						t.state = inWordState
-					}
-				}
-			}
-		case inWordState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						t.isEnded = true
-						t.state = startState
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				case spaceRuneClass:
-					{
-						t.state = startState
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				case escapingQuoteRuneClass:
-					{
-						t.state = quotingEscapingState
-					}
-				case nonEscapingQuoteRuneClass:
-					{
-						t.state = quotingState
-					}
-				case endLineRuneClass:
-					{
-						t.state = endLineState
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, nil
-					}
-				case pipeRuneClass:
-					{
-						t.state = pipeSymbolState
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, nil
-					}
-				case escapeRuneClass:
-					{
-						t.state = escapingState
-					}
-				default:
-					{
-						value = append(value, nextRune)
-					}
-				}
-			}
-		case escapingState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						err = fmt.Errorf("EOF found after escape character")
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				default:
-					{
-						t.state = inWordState
-						value = append(value, nextRune)
-					}
-				}
-			}
-		case escapingQuotedState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						err = fmt.Errorf("EOF found after escape character")
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				default:
-					{
-						t.state = quotingEscapingState
-						value = append(value, nextRune)
-					}
-				}
-			}
-		case quotingEscapingState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						err = fmt.Errorf("EOF found when expecting closing quote")
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				case escapingQuoteRuneClass:
-					{
-						t.state = inWordState
-					}
-				case escapeRuneClass:
-					{
-						t.state = escapingQuotedState
-					}
-				default:
-					{
-						value = append(value, nextRune)
-					}
-				}
-			}
-		case quotingState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						err = fmt.Errorf("EOF found when expecting closing quote")
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				case nonEscapingQuoteRuneClass:
-					{
-						t.state = inWordState
-					}
-				default:
-					{
-						value = append(value, nextRune)
-					}
-				}
-			}
-		case commentState:
-			{
-				switch nextRuneType {
-				case eofRuneClass:
-					{
-						t.isEnded = true
-						t.state = startState
-						token := &Token{
-							TokenType: tokenType,
-							Value:     string(value)}
-						return token, err
-					}
-				case endLineRuneClass:
-					{
-						t.state = startState
-						return &Token{TokenType: EndLineToken, Value: endLineRunes}, nil
-					}
-				case spaceRuneClass:
-					{
-						if nextRune == '\n' {
-							t.state = endLineState
-							token := &Token{
-								TokenType: tokenType,
-								Value:     string(value)}
-							return token, err
-						} else {
-							value = append(value, nextRune)
-						}
-					}
-				default:
-					{
-						value = append(value, nextRune)
-					}
-				}
-			}
-		default:
-			{
-				return nil, fmt.Errorf("Unexpected state: %v", t.state)
-			}
+		// Обработать текущий символ в контексте текущего состояни
+		token, err := t.handleRune()
+
+		if token != nil || err != nil {
+			t.currentTokenState = nil
+			return token, err
 		}
 	}
 }
 
 func (t *Tokenizer) Next() (*Token, error) {
 	return t.scanStream()
-}
-
-func SplitOnTokens(s string) ([]Token, error) {
-	tokenizer := NewTokenizer(strings.NewReader(s))
-	tokens := make([]Token, 0)
-	for {
-		token, err := tokenizer.Next()
-		if err != nil {
-			if err == io.EOF {
-				return tokens, nil
-			}
-			return []Token{}, err
-		}
-		tokens = append(tokens, *token)
-	}
 }
