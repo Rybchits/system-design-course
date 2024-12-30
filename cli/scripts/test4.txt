@@ -1,0 +1,5 @@
+"echo" 123
+cat "./scripts/file with spaces.txt"
+echo
+cat "./scripts/file with spaces"'.txt'
+echo

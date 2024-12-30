@@ -1,10 +1,10 @@
 package parser
 
 import (
+	"errors"
 	"io"
 	"shell/internal/command_meta"
 	"strings"
-	"errors"
 )
 
 var ParseError = errors.New("Cannot parse command")
@@ -26,7 +26,7 @@ func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 
 	for {
 		token, err := p.tokenizer.Next()
-		if err == nil {
+		if token != nil {
 			switch token.TokenType {
 			case WordToken:
 				{
@@ -64,9 +64,15 @@ func (p *Parser) Parse() ([]command_meta.CommandMeta, error) {
 				}
 			}
 			prev_token = token.TokenType
-		} else if err == io.EOF {
+		}
+
+		if err == io.EOF {
+			if !current.IsEmpty() {
+				pipe = append(pipe, current)
+			}
 			return pipe, io.EOF
-		} else {
+
+		} else if err != nil {
 			return pipe, err
 		}
 	}
