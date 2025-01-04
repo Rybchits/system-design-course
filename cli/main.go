@@ -14,7 +14,7 @@ func main() {
 	sh := shellmodel.NewShell()
 
 	go func() {
-		sh.ShellLoop(os.Stdin, os.Stdout, true)
+		sh.ShellLoop(os.Stdin, os.Stdout, false)
 		os.Exit(0)
 	}()
 

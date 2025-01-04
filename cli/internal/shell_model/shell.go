@@ -23,28 +23,31 @@ func NewShell() *Shell {
 // Обрабатывает пользовательский ввод
 func (self *Shell) ShellLoop(input *os.File, output *os.File, to_greet bool) {
 
+	tokenizer := parser.NewTokenizer(input, &envsholder.GlobalEnv)
+	curr_parser := parser.NewParser(tokenizer)
 	for {
 		if to_greet {
 			output.WriteString("$ ")
 		}
-		tokenizer := parser.NewTokenizer(input, &envsholder.GlobalEnv)
-		curr_parser := parser.NewParser(tokenizer)
 		commands, err := curr_parser.Parse()
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
+		end_of_file := err == io.EOF
+
+		if err != nil && !end_of_file {
 			output.WriteString("Parse issue\n")
 			continue
 		}
+
 		pipeline := self.pipelineFactory.CreatePipeline(input, output, commands)
-		if pipeline == nil {
-			continue
+		if pipeline != nil {
+			err = pipeline.Execute()
+			if err != nil {
+				envsholder.GlobalEnv.Set(envsholder.ExecStatusKey, "1")
+				fmt.Printf("%s\n", err)
+			}
 		}
-		err = pipeline.Execute()
-		if err != nil {
-			envsholder.GlobalEnv.Set(envsholder.ExecStatusKey, "1")
-			fmt.Printf("%s\n", err)
+
+		if end_of_file {
+			return
 		}
 	}
 }
