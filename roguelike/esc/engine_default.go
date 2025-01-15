@@ -6,6 +6,7 @@ type defaultEngine struct {
 	systemManager SystemManager
 }
 
+// запускает игровой цикл (бесконечный цикл работы систем)
 func (e *defaultEngine) Run() {
 	shouldStop := false
 	for !shouldStop {
@@ -19,6 +20,7 @@ func (e *defaultEngine) Run() {
 	}
 }
 
+// единичный шаг игрового цикла
 func (e *defaultEngine) Tick() {
 	for _, system := range e.systemManager.Systems() {
 		if state := system.Process(e.entityManager); state == StateEngineStop {
