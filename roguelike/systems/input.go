@@ -42,7 +42,7 @@ func (a *inputSystem) Process(em ecs.EntityManager) (engineState int) {
 			return ecs.StateEngineStop
 		}
 		// TODO Вынести логику перехода
-		if canMove(newPlayerPosition, 10, 10) {
+		if canMove(newPlayerPosition, 15, 15) {
 			*playerPosition = *newPlayerPosition
 		}
 	}

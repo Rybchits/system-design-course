@@ -1,6 +1,8 @@
 package game
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"roguelike/components"
@@ -11,9 +13,9 @@ import (
 )
 
 type defaultGameBuilder struct {
-	level  int
-	screen tcell.Screen
-	engine ecs.Engine
+	levelData components.Level
+	screen    tcell.Screen
+	engine    ecs.Engine
 }
 
 func NewDefaultGameBuilder() *defaultGameBuilder {
@@ -21,7 +23,18 @@ func NewDefaultGameBuilder() *defaultGameBuilder {
 }
 
 func (b *defaultGameBuilder) SetLevel(level int) {
-	b.level = level
+	filePath := fmt.Sprintf("resources/level_%d.json", level)
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Fatalf("Failed to read level file: %v", err)
+		os.Exit(1)
+	}
+	var levelData components.Level
+	if err := json.Unmarshal(file, &levelData); err != nil {
+		log.Fatalf("Failed to unmarshal level data: %v", err)
+		os.Exit(1)
+	}
+	b.levelData = levelData
 }
 
 func (b *defaultGameBuilder) BuildScreen() {
@@ -38,7 +51,7 @@ func (b *defaultGameBuilder) BuildScreen() {
 }
 
 func (b *defaultGameBuilder) BuildEngine() {
-	width, height := 10, 10
+	width, height := b.levelData.MapSize.Width, b.levelData.MapSize.Height
 	sm := ecs.NewSystemManager()
 	em := ecs.NewEntityManager()
 
@@ -47,10 +60,19 @@ func (b *defaultGameBuilder) BuildEngine() {
 		systems.NewInputSystem().WithScreen(&b.screen),
 	)
 
-	em.Add(ecs.NewEntity("player", []ecs.Component{
-		components.NewPosition().WithX(0).WithY(0),
+	for _, obstacle := range b.levelData.Obstacles {
+		obstacleEntity := ecs.NewEntity("obstacle", []ecs.Component{
+			components.NewPosition().WithX(obstacle.Pos.X).WithY(obstacle.Pos.Y),
+			components.NewTexture('#'),
+		})
+		em.Add(obstacleEntity)
+	}
+
+	player := ecs.NewEntity("player", []ecs.Component{
+		components.NewPosition().WithX(b.levelData.StartPosition.X).WithY(b.levelData.StartPosition.Y),
 		components.NewTexture('@'),
-	}))
+	})
+	em.Add(player)
 
 	b.engine = ecs.NewDefaultEngine(em, sm)
 	b.engine.Setup()

@@ -1,0 +1,16 @@
+{
+    "level_number": 1,
+    "next_level_xp": 2,
+    "start_position": {
+        "x": 5,
+        "y": 0
+    },
+    "map_size" : {
+        "height": 15,
+        "width": 15
+    },
+    "obstacles": [
+        { "type": "wall", "pos": { "x": 1, "y": 1 } },
+        { "type": "wall", "pos": { "x": 2, "y": 1 } }
+    ]
+}
