@@ -61,6 +61,7 @@ func (b *defaultGameBuilder) BuildEngine() {
 	sm := ecs.NewSystemManager()
 	em := ecs.NewEntityManager()
 
+	// Добавляет системы в менеджер систем
 	sm.Add(
 		systems.NewRenderingSystem().WithWidth(width).WithHeight(height).WithScreen(&b.screen),
 		inputSystemPackage.NewInputSystem().WithScreen(&b.screen).WithInputHandlers(
@@ -70,9 +71,10 @@ func (b *defaultGameBuilder) BuildEngine() {
 		movementSystemPackage.NewMovementSystem(),
 	)
 
-	for index, obstacle := range b.location.Obstacles {
-		id := fmt.Sprintf("obstacle-%d", index)
-		if entity := b.entityFactory.CreateObstacle(id, obstacle.Type, obstacle.Pos.X, obstacle.Pos.Y); entity != nil {
+	// Заполняет карту противниками
+	for index, enemy := range b.location.Enemies {
+		id := fmt.Sprintf("enemy-%d", index)
+		if entity := b.entityFactory.CreateEnemy(id, enemy.Type, enemy.Pos.X, enemy.Pos.Y, enemy.Health, enemy.Attack); entity != nil {
 			em.Add(entity)
 		}
 	}
