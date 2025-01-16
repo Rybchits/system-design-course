@@ -1,8 +1,10 @@
 package systems
 
 import (
+	"fmt"
 	"roguelike/internal/components"
 	ecs "roguelike/packages/ecs"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -14,20 +16,30 @@ type renderingSystem struct {
 
 	// Текст над полем
 	title string
-
-	// Размер игрового поля
-	width, height int
 }
 
 func (a *renderingSystem) Setup() {}
 
 func (a *renderingSystem) Process(em ecs.EntityManager) (state int) {
 	(*a.screen).Clear()
+	location := em.Get("location").Get(components.MaskLocation).(*components.Location)
+	offsetX, offsetY := 0, 0
+
+	a.renderMap(em, offsetX, offsetY, location.MapSize)
+	offsetX += location.MapSize.Width + 1
+
+	a.renderEntityDescription(em, offsetX, offsetY)
+
+	(*a.screen).Show()
+	return ecs.StateEngineContinue
+}
+
+func (a *renderingSystem) renderMap(em ecs.EntityManager, offsetX, offsetY int, size components.Size) {
 
 	// отрисовываем фон
-	for y := 0; y < a.height; y++ {
-		for x := 0; x < a.width; x++ {
-			(*a.screen).SetContent(x, y, '.', nil, tcell.StyleDefault)
+	for y := 0; y < size.Height; y++ {
+		for x := 0; x < size.Width; x++ {
+			(*a.screen).SetContent(x+offsetX, y+offsetY, '.', nil, tcell.StyleDefault)
 		}
 	}
 
@@ -38,9 +50,34 @@ func (a *renderingSystem) Process(em ecs.EntityManager) (state int) {
 		entityTexture := entity.Get(components.MaskTexture).(*components.Texture)
 		(*a.screen).SetContent(entityPosition.X, entityPosition.Y, rune(*entityTexture), nil, tcell.StyleDefault)
 	}
+}
 
-	(*a.screen).Show()
-	return ecs.StateEngineContinue
+func (a *renderingSystem) renderEntityDescription(em ecs.EntityManager, offsetX, offsetY int) (int, int) {
+	description := ""
+	entities := em.FilterByMask(components.MaskHealth | components.MaskAttack)
+	for _, entity := range entities {
+		entityID := entity.Id
+		entityHealth := entity.Get(components.MaskHealth).(*components.Health)
+		entityAttack := entity.Get(components.MaskAttack).(*components.Attack)
+
+		description += fmt.Sprintf("%s:\tHealth: %d\tAttack: %d\n", entityID, entityHealth.CurrentHealth, entityAttack.Damage)
+	}
+	lines, maxLength := a.renderText(description, offsetX, offsetY)
+	return offsetX + maxLength, offsetY + lines
+}
+
+// Отрисовка текста
+// Возвращает количество строк и длина самой длинной строки
+func (a *renderingSystem) renderText(text string, offsetX, offsetY int) (int, int) {
+	lines := strings.Split(text, "\n")
+	maxLength := 0
+	for row, line := range lines {
+		maxLength = max(maxLength, len(line))
+		for col, char := range line {
+			(*a.screen).SetContent(col+offsetX, row+offsetY, char, nil, tcell.StyleDefault)
+		}
+	}
+	return len(lines), maxLength
 }
 
 func (a *renderingSystem) Teardown() {}
@@ -52,16 +89,6 @@ func (a *renderingSystem) WithScreen(screen *tcell.Screen) *renderingSystem {
 
 func (a *renderingSystem) WithTitle(title string) *renderingSystem {
 	a.title = title
-	return a
-}
-
-func (a *renderingSystem) WithHeight(height int) *renderingSystem {
-	a.height = height
-	return a
-}
-
-func (a *renderingSystem) WithWidth(width int) *renderingSystem {
-	a.width = width
 	return a
 }
 

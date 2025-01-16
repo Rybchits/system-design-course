@@ -58,7 +58,6 @@ func (b *defaultGameBuilder) BuildScreen() {
 }
 
 func (b *defaultGameBuilder) BuildEngine() {
-	width, height := b.location.MapSize.Width, b.location.MapSize.Height
 	sm := ecs.NewSystemManager()
 	em := ecs.NewEntityManager()
 
@@ -70,13 +69,14 @@ func (b *defaultGameBuilder) BuildEngine() {
 		),
 		combatSystemPackage.NewCombatSystem(),
 		movementSystemPackage.NewMovementSystem(),
-		renderingSystemPackage.NewRenderingSystem().WithWidth(width).WithHeight(height).WithScreen(&b.screen),
+		renderingSystemPackage.NewRenderingSystem().WithScreen(&b.screen),
 	)
 
 	// Заполняет карту противниками
 	for index, enemy := range b.location.Enemies {
 		id := fmt.Sprintf("enemy-%d", index)
-		if entity := b.entityFactory.CreateEnemy(id, enemy.Type, enemy.Pos.X, enemy.Pos.Y, enemy.Health, enemy.Attack); entity != nil {
+		entity := b.entityFactory.CreateEnemy(id, enemy.Type, enemy.Pos.X, enemy.Pos.Y, enemy.Health, enemy.Attack)
+		if entity != nil {
 			em.Add(entity)
 		}
 	}
