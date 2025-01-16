@@ -11,10 +11,15 @@ func NewEntityFactory() *EntityFactory {
 	return &EntityFactory{}
 }
 
-func (f *EntityFactory) CreatePlayer(x, y int) *ecs.Entity {
+func (f *EntityFactory) CreatePlayer(x, y int, health int, attack int) *ecs.Entity {
+	healthComponent := components.NewHealth(health)
+	attackComponent := components.NewAttack(attack)
+
 	return ecs.NewEntity("player", []ecs.Component{
 		components.NewPosition().WithX(x).WithY(y),
 		components.NewTexture('@'),
+		healthComponent,
+		attackComponent,
 	})
 }
 

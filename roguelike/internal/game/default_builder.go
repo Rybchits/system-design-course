@@ -18,6 +18,8 @@ import (
 
 type defaultGameBuilder struct {
 	location      components.Location
+	playerAttack  int
+	playerHealth  int
 	screen        tcell.Screen
 	engine        ecs.Engine
 	entityFactory entities.EntityFactory
@@ -26,10 +28,22 @@ type defaultGameBuilder struct {
 func NewDefaultGameBuilder() *defaultGameBuilder {
 	return &defaultGameBuilder{
 		entityFactory: *entities.NewEntityFactory(),
+		playerAttack:  10,
+		playerHealth:  100,
 	}
 }
 
-func (b *defaultGameBuilder) SetLocation(location string) {
+func (b *defaultGameBuilder) WithPlayerAttack(attack int) *defaultGameBuilder {
+	b.playerAttack = attack
+	return b
+}
+
+func (b *defaultGameBuilder) WithPlayerHealth(health int) *defaultGameBuilder {
+	b.playerHealth = health
+	return b
+}
+
+func (b *defaultGameBuilder) WithLocation(location string) *defaultGameBuilder {
 	filePath := fmt.Sprintf("resources/location_%s.json", location)
 	file, err := os.ReadFile(filePath)
 	if err != nil {
@@ -42,6 +56,7 @@ func (b *defaultGameBuilder) SetLocation(location string) {
 		os.Exit(1)
 	}
 	b.location = locationData
+	return b
 }
 
 func (b *defaultGameBuilder) BuildScreen() {
@@ -71,6 +86,12 @@ func (b *defaultGameBuilder) BuildEngine() {
 		movementSystemPackage.NewMovementSystem(),
 		renderingSystemPackage.NewRenderingSystem().WithScreen(&b.screen),
 	)
+	em.Add(b.entityFactory.CreatePlayer(
+		b.location.StartPosition.X,
+		b.location.StartPosition.Y,
+		b.playerHealth,
+		b.playerAttack,
+	))
 
 	// Заполняет карту противниками
 	for index, enemy := range b.location.Enemies {
@@ -80,7 +101,6 @@ func (b *defaultGameBuilder) BuildEngine() {
 			em.Add(entity)
 		}
 	}
-	em.Add(b.entityFactory.CreatePlayer(b.location.StartPosition.X, b.location.StartPosition.Y))
 	em.Add(b.entityFactory.CreateLocation(b.location))
 
 	b.engine = ecs.NewDefaultEngine(em, sm)
