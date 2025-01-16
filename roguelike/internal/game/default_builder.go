@@ -9,6 +9,7 @@ import (
 	"roguelike/internal/entities"
 	"roguelike/internal/systems"
 	inputSystemPackage "roguelike/internal/systems/input"
+	movementSystemPackage "roguelike/internal/systems/movement"
 	ecs "roguelike/packages/ecs"
 
 	"github.com/gdamore/tcell/v2"
@@ -66,6 +67,7 @@ func (b *defaultGameBuilder) BuildEngine() {
 			inputSystemPackage.NewMoveHandler(),
 			inputSystemPackage.NewQuitHandler(),
 		),
+		movementSystemPackage.NewMovementSystem(),
 	)
 
 	for index, obstacle := range b.location.Obstacles {

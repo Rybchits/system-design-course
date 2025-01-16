@@ -15,3 +15,10 @@ type Location struct {
 func (a *Location) Mask() uint64 {
 	return MaskLocation
 }
+
+func (a *Location) IsAvailablePosition(position Position) bool {
+	return position.X < a.MapSize.Width &&
+		position.Y < a.MapSize.Height &&
+		position.X >= 0 &&
+		position.Y >= 0
+}

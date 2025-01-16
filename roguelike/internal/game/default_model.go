@@ -19,5 +19,5 @@ func (g defaultGameModel) Run() {
 func (g defaultGameModel) Stop() {
 	g.screen.Fini()
 	g.engine.Teardown()
-	fmt.Println("Game is over")
+	fmt.Println("Game over")
 }

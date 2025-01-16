@@ -20,19 +20,14 @@ func (h *MoveHandler) CanHandle(event *tcell.EventKey) bool {
 	return false
 }
 
-func canMove(newPosition *components.Position, width, height int) bool {
-	return newPosition.X < width &&
-		newPosition.Y < height &&
-		newPosition.X >= 0 &&
-		newPosition.Y >= 0
-}
-
+// Считывает нажатие WASD и добавляет игроку компонент передвижения на новую позицию
 func (h *MoveHandler) Handle(event *tcell.EventKey, em ecs.EntityManager) bool {
 	player := em.Get("player")
+
 	playerPosition := player.Get(components.MaskPosition).(*components.Position)
+	newPlayerPosition := playerPosition.Clone()
 
 	location := em.Get("location").Get(components.MaskLocation).(*components.Location)
-	newPlayerPosition := playerPosition.Clone()
 
 	switch event.Rune() {
 	case 'w', 'W':
@@ -44,8 +39,8 @@ func (h *MoveHandler) Handle(event *tcell.EventKey, em ecs.EntityManager) bool {
 	case 'd', 'D':
 		newPlayerPosition.WithX(playerPosition.X + 1)
 	}
-	if canMove(newPlayerPosition, location.MapSize.Width, location.MapSize.Height) {
-		*playerPosition = *newPlayerPosition
+	if location.IsAvailablePosition(*newPlayerPosition) {
+		player.Add(components.NewMovement().WithPrevious(*playerPosition).WithNext(*newPlayerPosition))
 	}
 	return true
 }
