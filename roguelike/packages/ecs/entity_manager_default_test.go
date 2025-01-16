@@ -3,7 +3,7 @@ package ecs_test
 import (
 	"testing"
 
-	ecs "roguelike/esc"
+	ecs "roguelike/packages/ecs"
 )
 
 func TestEntityManager_Entities_Should_Have_No_Entity_At_Start(t *testing.T) {

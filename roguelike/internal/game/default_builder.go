@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"roguelike/components"
-	ecs "roguelike/esc"
-	"roguelike/systems"
-	inputSystemPackage "roguelike/systems/input"
+	"roguelike/internal/components"
+	"roguelike/internal/systems"
+	inputSystemPackage "roguelike/internal/systems/input"
+	ecs "roguelike/packages/ecs"
 
 	"github.com/gdamore/tcell/v2"
 )

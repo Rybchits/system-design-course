@@ -3,7 +3,7 @@ package ecs_test
 import (
 	"testing"
 
-	ecs "roguelike/esc"
+	ecs "roguelike/packages/ecs"
 )
 
 func prepare() (e ecs.Engine, sys *mockupSystem) {

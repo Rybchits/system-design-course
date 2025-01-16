@@ -1,8 +1,8 @@
 package systems
 
 import (
-	"roguelike/components"
-	ecs "roguelike/esc"
+	"roguelike/internal/components"
+	ecs "roguelike/packages/ecs"
 
 	"github.com/gdamore/tcell/v2"
 )

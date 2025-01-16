@@ -3,7 +3,7 @@ package ecs_test
 import (
 	"testing"
 
-	ecs "roguelike/esc"
+	ecs "roguelike/packages/ecs"
 )
 
 func TestSystemManager_Systems_Should_Have_No_System_At_Start(t *testing.T) {

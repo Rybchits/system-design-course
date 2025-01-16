@@ -1,7 +1,7 @@
 package main
 
 import (
-	"roguelike/game"
+	"roguelike/internal/game"
 )
 
 func main() {

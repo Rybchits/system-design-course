@@ -1,7 +1,7 @@
 package ecs_test
 
 import (
-	ecs "roguelike/esc"
+	ecs "roguelike/packages/ecs"
 	"testing"
 )
 

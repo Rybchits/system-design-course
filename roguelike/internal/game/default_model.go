@@ -2,7 +2,7 @@ package game
 
 import (
 	"fmt"
-	ecs "roguelike/esc"
+	ecs "roguelike/packages/ecs"
 
 	"github.com/gdamore/tcell/v2"
 )
