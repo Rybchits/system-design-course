@@ -18,7 +18,6 @@ func prepare() (e ecs.Engine, sys *mockupSystem) {
 func TestDefaultEngine_Teardown_After_Setup_Should_Set_StateEngineStop(t *testing.T) {
 	engine, system := prepare()
 	engine.Setup()
-	// app.Run()
 	engine.Teardown()
 	if system.State != ecs.StateEngineStop {
 		t.Error("State should be correct")
@@ -48,14 +47,6 @@ func TestDefaultEngine_Tick_Twice_Should_Increase_Counter_By_Two(t *testing.T) {
 		t.Errorf("Counter should be 2, but got %d", system.Counter)
 	}
 }
-
-/*
-       _   _ _
- _   _| |_(_) |___
-| | | | __| | / __|
-| |_| | |_| | \__ \
- \__,_|\__|_|_|___/
-*/
 
 type mockupEntityManager struct{}
 
