@@ -1,4 +1,4 @@
-package movements
+package systems
 
 import (
 	"roguelike/internal/components"

@@ -7,9 +7,10 @@ import (
 	"os"
 	"roguelike/internal/components"
 	"roguelike/internal/entities"
-	"roguelike/internal/systems"
+	combatSystemPackage "roguelike/internal/systems/combat"
 	inputSystemPackage "roguelike/internal/systems/input"
 	movementSystemPackage "roguelike/internal/systems/movement"
+	renderingSystemPackage "roguelike/internal/systems/rendering"
 	ecs "roguelike/packages/ecs"
 
 	"github.com/gdamore/tcell/v2"
@@ -63,12 +64,13 @@ func (b *defaultGameBuilder) BuildEngine() {
 
 	// Добавляет системы в менеджер систем
 	sm.Add(
-		systems.NewRenderingSystem().WithWidth(width).WithHeight(height).WithScreen(&b.screen),
 		inputSystemPackage.NewInputSystem().WithScreen(&b.screen).WithInputHandlers(
 			inputSystemPackage.NewMoveHandler(),
 			inputSystemPackage.NewQuitHandler(),
 		),
+		combatSystemPackage.NewCombatSystem(),
 		movementSystemPackage.NewMovementSystem(),
+		renderingSystemPackage.NewRenderingSystem().WithWidth(width).WithHeight(height).WithScreen(&b.screen),
 	)
 
 	// Заполняет карту противниками
