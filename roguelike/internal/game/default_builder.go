@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"roguelike/internal/components"
+	"roguelike/internal/entities"
 	"roguelike/internal/systems"
 	inputSystemPackage "roguelike/internal/systems/input"
 	ecs "roguelike/packages/ecs"
@@ -14,13 +15,16 @@ import (
 )
 
 type defaultGameBuilder struct {
-	location components.Location
-	screen   tcell.Screen
-	engine   ecs.Engine
+	location      components.Location
+	screen        tcell.Screen
+	engine        ecs.Engine
+	entityFactory entities.EntityFactory
 }
 
 func NewDefaultGameBuilder() *defaultGameBuilder {
-	return &defaultGameBuilder{}
+	return &defaultGameBuilder{
+		entityFactory: *entities.NewEntityFactory(),
+	}
 }
 
 func (b *defaultGameBuilder) SetLocation(location string) {
@@ -66,21 +70,12 @@ func (b *defaultGameBuilder) BuildEngine() {
 
 	for index, obstacle := range b.location.Obstacles {
 		id := fmt.Sprintf("obstacle-%d", index)
-		obstacleEntity := ecs.NewEntity(id, []ecs.Component{
-			components.NewPosition().WithX(obstacle.Pos.X).WithY(obstacle.Pos.Y),
-			components.NewTexture('#'),
-		})
-		em.Add(obstacleEntity)
+		if entity := b.entityFactory.CreateObstacle(id, obstacle.Type, obstacle.Pos.X, obstacle.Pos.Y); entity != nil {
+			em.Add(entity)
+		}
 	}
-
-	player := ecs.NewEntity("player", []ecs.Component{
-		components.NewPosition().WithX(b.location.StartPosition.X).WithY(b.location.StartPosition.Y),
-		components.NewTexture('@'),
-	})
-	em.Add(player)
-
-	location := ecs.NewEntity("location", []ecs.Component{&b.location})
-	em.Add(location)
+	em.Add(b.entityFactory.CreatePlayer(b.location.StartPosition.X, b.location.StartPosition.Y))
+	em.Add(b.entityFactory.CreateLocation(b.location))
 
 	b.engine = ecs.NewDefaultEngine(em, sm)
 	b.engine.Setup()
