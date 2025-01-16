@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	ecs "roguelike/esc"
 
 	"github.com/gdamore/tcell/v2"
@@ -18,4 +19,5 @@ func (g defaultGameModel) Run() {
 func (g defaultGameModel) Stop() {
 	g.screen.Fini()
 	g.engine.Teardown()
+	fmt.Println("Game is over")
 }

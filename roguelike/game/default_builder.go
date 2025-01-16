@@ -8,33 +8,34 @@ import (
 	"roguelike/components"
 	ecs "roguelike/esc"
 	"roguelike/systems"
+	inputSystemPackage "roguelike/systems/input"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 type defaultGameBuilder struct {
-	levelData components.Level
-	screen    tcell.Screen
-	engine    ecs.Engine
+	location components.Location
+	screen   tcell.Screen
+	engine   ecs.Engine
 }
 
 func NewDefaultGameBuilder() *defaultGameBuilder {
 	return &defaultGameBuilder{}
 }
 
-func (b *defaultGameBuilder) SetLevel(level int) {
-	filePath := fmt.Sprintf("resources/level_%d.json", level)
+func (b *defaultGameBuilder) SetLocation(location string) {
+	filePath := fmt.Sprintf("resources/location_%s.json", location)
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Fatalf("Failed to read level file: %v", err)
+		log.Fatalf("Failed to read location file: %v", err)
 		os.Exit(1)
 	}
-	var levelData components.Level
-	if err := json.Unmarshal(file, &levelData); err != nil {
-		log.Fatalf("Failed to unmarshal level data: %v", err)
+	var locationData components.Location
+	if err := json.Unmarshal(file, &locationData); err != nil {
+		log.Fatalf("Failed to unmarshal location data: %v", err)
 		os.Exit(1)
 	}
-	b.levelData = levelData
+	b.location = locationData
 }
 
 func (b *defaultGameBuilder) BuildScreen() {
@@ -51,17 +52,21 @@ func (b *defaultGameBuilder) BuildScreen() {
 }
 
 func (b *defaultGameBuilder) BuildEngine() {
-	width, height := b.levelData.MapSize.Width, b.levelData.MapSize.Height
+	width, height := b.location.MapSize.Width, b.location.MapSize.Height
 	sm := ecs.NewSystemManager()
 	em := ecs.NewEntityManager()
 
 	sm.Add(
 		systems.NewRenderingSystem().WithWidth(width).WithHeight(height).WithScreen(&b.screen),
-		systems.NewInputSystem().WithScreen(&b.screen),
+		inputSystemPackage.NewInputSystem().WithScreen(&b.screen).WithInputHandlers(
+			inputSystemPackage.NewMoveHandler(),
+			inputSystemPackage.NewQuitHandler(),
+		),
 	)
 
-	for _, obstacle := range b.levelData.Obstacles {
-		obstacleEntity := ecs.NewEntity("obstacle", []ecs.Component{
+	for index, obstacle := range b.location.Obstacles {
+		id := fmt.Sprintf("obstacle-%d", index)
+		obstacleEntity := ecs.NewEntity(id, []ecs.Component{
 			components.NewPosition().WithX(obstacle.Pos.X).WithY(obstacle.Pos.Y),
 			components.NewTexture('#'),
 		})
@@ -69,10 +74,13 @@ func (b *defaultGameBuilder) BuildEngine() {
 	}
 
 	player := ecs.NewEntity("player", []ecs.Component{
-		components.NewPosition().WithX(b.levelData.StartPosition.X).WithY(b.levelData.StartPosition.Y),
+		components.NewPosition().WithX(b.location.StartPosition.X).WithY(b.location.StartPosition.Y),
 		components.NewTexture('@'),
 	})
 	em.Add(player)
+
+	location := ecs.NewEntity("location", []ecs.Component{&b.location})
+	em.Add(location)
 
 	b.engine = ecs.NewDefaultEngine(em, sm)
 	b.engine.Setup()

@@ -1,6 +1,5 @@
 {
-    "level_number": 1,
-    "next_level_xp": 2,
+    "level_number": "1",
     "start_position": {
         "x": 5,
         "y": 0

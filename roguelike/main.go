@@ -6,7 +6,7 @@ import (
 
 func main() {
 	builder := game.NewDefaultGameBuilder()
-	builder.SetLevel(1)
+	builder.SetLocation("1")
 	builder.BuildScreen()
 	builder.BuildEngine()
 

@@ -5,10 +5,6 @@ type Size struct {
 	Height int `json:"height"`
 }
 
-func (a *Size) Mask() uint64 {
-	return MaskSize
-}
-
 func (a *Size) WithWidth(width int) *Size {
 	a.Width = width
 	return a
