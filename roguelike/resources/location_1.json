@@ -9,8 +9,8 @@
         "width": 15
     },
     "enemies": [
-        { "type": "passive", "pos": { "x": 0, "y": 3 }, "health": 100, "attack": 100 },
+        { "type": "passive", "pos": { "x": 0, "y": 3 }, "health": 100, "attack": 1 },
         { "type": "passive", "pos": { "x": 0, "y": 5 }, "health": 100, "attack": 2 },
-        { "type": "passive", "pos": { "x": 0, "y": 7 }, "health": 100, "attack": 3 }
+        { "type": "passive", "pos": { "x": 0, "y": 7 }, "health": 100, "attack": 100 }
     ]
 }
