@@ -33,3 +33,8 @@ func (h *Health) Heal(amount int) {
 func (h *Health) IsAlive() bool {
 	return h.CurrentHealth > 0
 }
+
+func (h *Health) WithMaxHealth(maxHealth int) *Health {
+	h.MaxHealth = maxHealth
+	return h
+}

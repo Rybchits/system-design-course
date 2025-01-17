@@ -9,4 +9,5 @@ const (
 	MaskHealth      = uint64(1 << 5)
 	MaskFraction    = uint64(1 << 6)
 	MaskMobStrategy = uint64(1 << 7)
+	MaskExperience  = uint64(1 << 8)
 )

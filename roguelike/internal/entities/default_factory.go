@@ -19,6 +19,7 @@ func (f *defaultEntityFactory) CreatePlayer(x, y int, health int, attack int) *e
 	return ecs.NewEntity("player", []ecs.Component{
 		components.NewPosition().WithX(x).WithY(y),
 		components.NewTexture('@'),
+		components.NewExperience(),
 		healthComponent,
 		attackComponent,
 		fractionComponent,

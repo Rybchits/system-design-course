@@ -9,6 +9,7 @@ import (
 	"roguelike/internal/entities"
 	collisionSystemPackage "roguelike/internal/systems/collision"
 	inputSystemPackage "roguelike/internal/systems/input"
+	levelSystemPackage "roguelike/internal/systems/level"
 	mobsBehaviorSystemPackage "roguelike/internal/systems/mobs_behavior"
 	movementSystemPackage "roguelike/internal/systems/movement"
 	renderingSystemPackage "roguelike/internal/systems/rendering"
@@ -84,9 +85,10 @@ func (b *defaultGameBuilder) BuildEngine() {
 		),
 		mobsBehaviorSystemPackage.NewmobsBehaviorSystem(),
 		collisionSystemPackage.NewCollisionSystem().WithHandlers(
-			collisionSystemPackage.NewAttackHandler(),
+			collisionSystemPackage.NewAttackHandler().WithOnDamageCallback(levelSystemPackage.OnDamageCallback),
 		),
 		movementSystemPackage.NewMovementSystem(),
+		levelSystemPackage.NewExperienceSystem(),
 		renderingSystemPackage.NewRenderingSystem().WithScreen(&b.screen),
 	)
 

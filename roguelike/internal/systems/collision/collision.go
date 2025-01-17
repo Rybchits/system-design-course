@@ -31,14 +31,10 @@ func (s *collisionSystem) Process(em ecs.EntityManager) (state int) {
 		movement := entity1.Get(components.MaskMovement).(*components.Movement)
 
 		for _, entity2 := range entities {
-			// Если это пересечение с тем же самым персонажем - пропускаем
-			if entity1 == entity2 {
-				continue
-			}
 			position2 := entity2.Get(components.MaskPosition).(*components.Position)
 
-			// Если пересечения нет
-			if movement.Next.X != position2.X || movement.Next.Y != position2.Y {
+			// Если это пересечение с тем же самым персонажем или пересечения нет - пропускаем
+			if entity1 == entity2 || movement.Next.X != position2.X || movement.Next.Y != position2.Y {
 				continue
 			}
 
