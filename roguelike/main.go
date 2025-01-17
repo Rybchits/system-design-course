@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	builder := game.NewDefaultGameBuilder().WithLocation("1")
+	builder := game.NewDefaultGameBuilder().WithLocation("resources/location_1.json")
 	builder.BuildScreen()
 	builder.BuildEngine()
 

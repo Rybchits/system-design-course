@@ -27,7 +27,7 @@ type defaultGameBuilder struct {
 
 func NewDefaultGameBuilder() *defaultGameBuilder {
 	return &defaultGameBuilder{
-		entityFactory: *entities.NewEntityFactory(),
+		entityFactory: entities.NewDefaultEntityFactory(),
 		playerAttack:  10,
 		playerHealth:  100,
 	}
@@ -43,9 +43,8 @@ func (b *defaultGameBuilder) WithPlayerHealth(health int) *defaultGameBuilder {
 	return b
 }
 
-func (b *defaultGameBuilder) WithLocation(location string) *defaultGameBuilder {
-	filePath := fmt.Sprintf("resources/location_%s.json", location)
-	file, err := os.ReadFile(filePath)
+func (b *defaultGameBuilder) WithLocation(locationFilePath string) *defaultGameBuilder {
+	file, err := os.ReadFile(locationFilePath)
 	if err != nil {
 		log.Fatalf("Failed to read location file: %v", err)
 		os.Exit(1)
@@ -104,7 +103,7 @@ func (b *defaultGameBuilder) BuildEngine() {
 			em.Add(entity)
 		}
 	}
-	em.Add(b.entityFactory.CreateLocation(b.location))
+	em.Add(ecs.NewEntity("location", []ecs.Component{&b.location}))
 
 	b.engine = ecs.NewDefaultEngine(em, sm)
 	b.engine.Setup()
