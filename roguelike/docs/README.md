@@ -193,6 +193,28 @@ classDiagram
         +Name() string
     }
 
+    class Position {
+        +int X
+        +int Y
+        +Mask() uint64
+    }
+
+    class Health {
+        +int Value
+        +Mask() uint64
+    }
+
+    class Attack {
+        +int Damage
+        +Mask() uint64
+    }
+
+    class Movement {
+        +Position Previous
+        +Position Next
+        +Mask() uint64
+    }
+
     class System {
         <<interface>>
         +Setup()
@@ -373,6 +395,10 @@ classDiagram
     System <|-- renderingSystem
     Entity "1" *-- "many" Component
     Component <|-- ComponentWithName
+    Component <|-- Position
+    Component <|-- Health
+    Component <|-- Attack
+    Component <|-- Movement
     System "1" *-- "many" Entity
     defaultEngine "1" *-- "1" EntityManager
     defaultEngine "1" *-- "1" SystemManager

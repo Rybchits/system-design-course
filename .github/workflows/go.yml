@@ -20,11 +20,17 @@ jobs:
       with:
         go-version: '1.23.2'
 
-    - name: Build
+    - name: Cli Build
       run: cd cli && go build -v ./...
 
-    - name: Test
+    - name: Cli Test
       run: cd cli && go test -v ./...
 
-    - name: Integration tests
+    - name: Cli Build
+      run: cd roguelike && go build -v ./...
+
+    - name: Cli Test
+      run: cd roguelike && go test -v ./...
+
+    - name: Cli Integration tests
       run: cd cli && go build && ./scripts/integration_tests.sh
