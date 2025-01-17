@@ -81,6 +81,93 @@ Roguelike — это консольная игра, построенная по 
 
 Эта диаграмма классов описывает основные компоненты паттерна ECS и их взаимодействие. Сущности (Entity) содержат компоненты (Component), которые представляют данные. Системы (System) содержат логику, которая применяется к сущностям с определённым набором компонентов. Менеджеры сущностей (EntityManager) и систем (SystemManager) управляют коллекциями сущностей и систем соответственно. Движок (Engine) управляет жизненным циклом игры, вызывая методы Setup, Run, Teardown и Tick для всех систем
 
+## **Диаграмма классов паттерна ECS **
+
+```mermaid
+classDiagram
+    direction LR
+    class Entity {
+        +string Id
+        +uint64 Masked
+        +[]Component Components
+        +Add(components ...Component)
+        +Get(mask uint64) Component
+        +Remove(mask uint64)
+        +Mask() uint64
+    }
+    class Component {
+        <<interface>>
+        +Mask() uint64
+    }
+    class ComponentWithName {
+        <<interface>>
+        +Mask() uint64
+        +Name() string
+    }
+    class System {
+        <<interface>>
+        +Setup()
+        +Process(entityManager EntityManager) int
+        +Teardown()
+    }
+    class EntityManager {
+        <<interface>>
+        +Add(entities ...*Entity)
+        +Entities() []*Entity
+        +FilterByMask(mask uint64) []*Entity
+        +FilterByNames(names ...string) []*Entity
+        +Get(id string) *Entity
+        +Remove(entity *Entity)
+    }
+    class SystemManager {
+        <<interface>>
+        +Add(systems ...System)
+        +Systems() []System
+    }
+    class Engine {
+        <<interface>>
+        +Run()
+        +Setup()
+        +Teardown()
+        +Tick()
+    }
+    class defaultEntityManager {
+        +[]*Entity entities
+        +Add(entities ...*Entity)
+        +Entities() []*Entity
+        +FilterByMask(mask uint64) []*Entity
+        +FilterByNames(names ...string) []*Entity
+        +Get(id string) *Entity
+        +Remove(entity *Entity)
+    }
+    class defaultSystemManager {
+        +[]System systems
+        +Add(systems ...System)
+        +Systems() []System
+    }
+    class defaultEngine {
+        +EntityManager entityManager
+        +SystemManager systemManager
+        +Run()
+        +Setup()
+        +Teardown()
+        +Tick()
+    }
+    EntityManager <|-- defaultEntityManager
+    SystemManager <|-- defaultSystemManager
+    Engine <|-- defaultEngine
+    Entity "1" *-- "many" Component
+    Component <|-- ComponentWithName
+    System "1" *-- "many" Entity
+    defaultEngine "1" *-- "1" EntityManager
+    defaultEngine "1" *-- "1" SystemManager
+    EntityManager "1" *-- "many" Entity
+    SystemManager "1" *-- "many" System
+````
+---
+
+## **Диаграмма классов Roguelike c ECS**
+
 ```mermaid
 classDiagram
     direction LR
@@ -162,9 +249,128 @@ classDiagram
         +Tick()
     }
 
+    class GameModel {
+        <<interface>>
+        +Run()
+        +Stop()
+    }
+
+    class defaultGameModel {
+        +Engine engine
+        +tcell.Screen screen
+        +Run()
+        +Stop()
+    }
+
+    class GameBuilder {
+        <<interface>>
+        +SetLocation(location string)
+        +BuildScreen()
+        +BuildEngine()
+        +GetResult() GameModel
+    }
+
+    class defaultGameBuilder {
+        +components.Location location
+        +int playerAttack
+        +int playerHealth
+        +tcell.Screen screen
+        +Engine engine
+        +EntityFactory entityFactory
+        +WithPlayerAttack(attack int) *defaultGameBuilder
+        +WithPlayerHealth(health int) *defaultGameBuilder
+        +WithLocation(locationFilePath string) *defaultGameBuilder
+        +BuildScreen()
+        +BuildEngine()
+        +GetResult() GameModel
+    }
+
+    class EntityFactory {
+        <<interface>>
+        +CreatePlayer(x, y int, health int, attack int) *Entity
+        +CreateEnemy(entityId string, typeEnemy string, x, y int, health int, attack int) *Entity
+    }
+
+    class defaultEntityFactory {
+        +CreatePlayer(x, y int, health int, attack int) *Entity
+        +CreateEnemy(entityId string, typeEnemy string, x, y int, health int, attack int) *Entity
+    }
+
+    class InputHandler {
+        <<interface>>
+        +CanHandle(event *tcell.EventKey) bool
+        +Handle(event *tcell.EventKey, em EntityManager) bool
+    }
+
+    class MoveHandler {
+        +CanHandle(event *tcell.EventKey) bool
+        +Handle(event *tcell.EventKey, em EntityManager) bool
+    }
+
+    class QuitHandler {
+        +CanHandle(event *tcell.EventKey) bool
+        +Handle(event *tcell.EventKey, em EntityManager) bool
+    }
+
+    class inputSystem {
+        +tcell.Screen screen
+        +chan tcell.Event eventChan
+        +[]InputHandler inputHandlers
+        +Process(em EntityManager) int
+        +WithScreen(screen *tcell.Screen) *inputSystem
+        +WithInputHandlers(handlers ...InputHandler) *inputSystem
+        +Setup()
+        +Teardown()
+    }
+
+    class CollisionHandler {
+        <<interface>>
+        +CanHandle(entity1, entity2 *Entity) bool
+        +Handle(entity1, entity2 *Entity) bool
+    }
+
+    class AttackHandler {
+        +CanHandle(entity1, entity2 *Entity) bool
+        +Handle(entity1, entity2 *Entity) bool
+    }
+
+    class collisionSystem {
+        +[]CollisionHandler handlers
+        +Process(em EntityManager) int
+        +WithHandlers(handlers ...CollisionHandler) *collisionSystem
+        +Setup()
+        +Teardown()
+    }
+
+    class movementSystem {
+        +Process(em EntityManager) int
+        +Setup()
+        +Teardown()
+    }
+
+    class renderingSystem {
+        +tcell.Screen screen
+        +string title
+        +Process(em EntityManager) int
+        +WithScreen(screen *tcell.Screen) *renderingSystem
+        +WithTitle(title string) *renderingSystem
+        +Setup()
+        +Teardown()
+    }
+
     EntityManager <|-- defaultEntityManager
     SystemManager <|-- defaultSystemManager
     Engine <|-- defaultEngine
+    GameModel <|-- defaultGameModel
+    GameBuilder <|-- defaultGameBuilder
+    EntityFactory <|-- defaultEntityFactory
+    InputHandler <|-- MoveHandler
+    InputHandler <|-- QuitHandler
+    CollisionHandler <|-- AttackHandler
+    System <|-- inputSystem
+    System <|-- collisionSystem
+    System <|-- movementSystem
+    System <|-- renderingSystem
     Entity "1" *-- "many" Component
     Component <|-- ComponentWithName
     System "1" *-- "many" Entity
@@ -172,5 +378,10 @@ classDiagram
     defaultEngine "1" *-- "1" SystemManager
     EntityManager "1" *-- "many" Entity
     SystemManager "1" *-- "many" System
-````
----
+    inputSystem "1" *-- "many" InputHandler
+    collisionSystem "1" *-- "many" CollisionHandler
+    defaultGameBuilder "1" *-- "1" EntityFactory
+    defaultGameModel "1" *-- "1" Engine
+    defaultGameBuilder "1" *-- "1" Engine
+    defaultGameBuilder "1" *-- "1" GameModel
+```
