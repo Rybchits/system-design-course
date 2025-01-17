@@ -9,6 +9,7 @@ import (
 	"roguelike/internal/entities"
 	collisionSystemPackage "roguelike/internal/systems/collision"
 	inputSystemPackage "roguelike/internal/systems/input"
+	mobsBehaviorSystemPackage "roguelike/internal/systems/mobs_behavior"
 	movementSystemPackage "roguelike/internal/systems/movement"
 	renderingSystemPackage "roguelike/internal/systems/rendering"
 	ecs "roguelike/packages/ecs"
@@ -81,6 +82,7 @@ func (b *defaultGameBuilder) BuildEngine() {
 			inputSystemPackage.NewMoveHandler(),
 			inputSystemPackage.NewQuitHandler(),
 		),
+		mobsBehaviorSystemPackage.NewmobsBehaviorSystem(),
 		collisionSystemPackage.NewCollisionSystem().WithHandlers(
 			collisionSystemPackage.NewAttackHandler(),
 		),
@@ -98,8 +100,7 @@ func (b *defaultGameBuilder) BuildEngine() {
 	// Заполняет карту противниками
 	for index, enemy := range b.location.Enemies {
 		id := fmt.Sprintf("enemy-%d", index)
-		entity := b.entityFactory.CreateEnemy(id, enemy.Type, enemy.Pos.X, enemy.Pos.Y, enemy.Health, enemy.Attack)
-		if entity != nil {
+		if entity := b.entityFactory.CreateEnemy(id, enemy); entity != nil {
 			em.Add(entity)
 		}
 	}

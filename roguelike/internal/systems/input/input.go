@@ -2,13 +2,14 @@ package systems
 
 import (
 	ecs "roguelike/packages/ecs"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 type inputSystem struct {
 	screen        *tcell.Screen
-	eventChan     chan tcell.Event
+	lastEvent     atomic.Pointer[tcell.Event]
 	inputHandlers []InputHandler
 }
 
@@ -20,8 +21,12 @@ type InputHandler interface {
 }
 
 func (a *inputSystem) Process(em ecs.EntityManager) (engineState int) {
-	ev := <-a.eventChan
-	switch ev := ev.(type) {
+	ev := a.lastEvent.Swap(nil)
+	if ev == nil {
+		return ecs.StateEngineContinue
+	}
+
+	switch ev := (*ev).(type) {
 	case *tcell.EventResize:
 		(*a.screen).Sync()
 
@@ -50,20 +55,17 @@ func (a *inputSystem) WithInputHandlers(handlers ...InputHandler) *inputSystem {
 }
 
 func (a *inputSystem) Setup() {
-	a.eventChan = make(chan tcell.Event)
 	go func() {
 		for {
 			ev := (*a.screen).PollEvent()
 			if ev != nil {
-				a.eventChan <- ev
+				a.lastEvent.Store(&ev)
 			}
 		}
 	}()
 }
 
-func (a *inputSystem) Teardown() {
-	close(a.eventChan)
-}
+func (a *inputSystem) Teardown() {}
 
 func NewInputSystem() *inputSystem {
 	return &inputSystem{}

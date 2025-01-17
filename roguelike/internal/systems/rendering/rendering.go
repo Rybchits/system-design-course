@@ -5,6 +5,7 @@ import (
 	"roguelike/internal/components"
 	ecs "roguelike/packages/ecs"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -31,6 +32,7 @@ func (a *renderingSystem) Process(em ecs.EntityManager) (state int) {
 	a.renderEntityDescription(em, offsetX, offsetY)
 
 	(*a.screen).Show()
+	time.Sleep(50 * time.Millisecond)
 	return ecs.StateEngineContinue
 }
 

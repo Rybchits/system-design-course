@@ -210,7 +210,6 @@ classDiagram
     }
 
     class Movement {
-        +Position Previous
         +Position Next
         +Mask() uint64
     }
