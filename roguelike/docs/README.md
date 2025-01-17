@@ -166,7 +166,7 @@ classDiagram
 ````
 ---
 
-## **Диаграмма классов Roguelike c ECS**
+## Диаграмма классов Roguelike c ECS
 
 ```mermaid
 classDiagram

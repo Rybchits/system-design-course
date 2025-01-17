@@ -14,12 +14,14 @@ func NewDefaultEntityFactory() *defaultEntityFactory {
 func (f *defaultEntityFactory) CreatePlayer(x, y int, health int, attack int) *ecs.Entity {
 	healthComponent := components.NewHealth(health)
 	attackComponent := components.NewAttack(attack)
+	fractionComponent := components.NewFraction(components.FriendsFraction)
 
 	return ecs.NewEntity("player", []ecs.Component{
 		components.NewPosition().WithX(x).WithY(y),
 		components.NewTexture('@'),
 		healthComponent,
 		attackComponent,
+		fractionComponent,
 	})
 }
 
@@ -27,6 +29,7 @@ func (f *defaultEntityFactory) CreateEnemy(entityId string, typeEnemy string, x,
 	position := components.NewPosition().WithX(x).WithY(y)
 	healthComponent := components.NewHealth(health)
 	attackComponent := components.NewAttack(attack)
+	fractionComponent := components.NewFraction(components.EnemiesFraction)
 
 	var texture *components.Texture
 	switch typeEnemy {
@@ -40,5 +43,11 @@ func (f *defaultEntityFactory) CreateEnemy(entityId string, typeEnemy string, x,
 		return nil
 	}
 	// TODO добавить компонент поведения
-	return ecs.NewEntity(entityId, []ecs.Component{position, texture, healthComponent, attackComponent})
+	return ecs.NewEntity(entityId, []ecs.Component{
+		position,
+		texture,
+		healthComponent,
+		attackComponent,
+		fractionComponent,
+	})
 }

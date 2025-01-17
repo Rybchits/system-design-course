@@ -16,7 +16,17 @@ func (h *AttackHandler) CanHandle(entity1, entity2 *ecs.Entity) bool {
 	return entity1.Get(components.MaskAttack) != nil && entity2.Get(components.MaskHealth) != nil
 }
 
+func haveSameFraction(entity1, entity2 *ecs.Entity) bool {
+	fraction1 := entity1.Get(components.MaskFraction).(*components.Fraction)
+	fraction2 := entity2.Get(components.MaskFraction).(*components.Fraction)
+	return fraction1 == fraction2
+}
+
 func (h *AttackHandler) Handle(entity1, entity2 *ecs.Entity) bool {
+	if haveSameFraction(entity1, entity2) {
+		return true
+	}
+
 	health1 := entity1.Get(components.MaskHealth).(*components.Health)
 	attack1 := entity1.Get(components.MaskAttack).(*components.Attack)
 
