@@ -10,7 +10,7 @@
     },
     "enemies": [
         { "type": "passive", "pos": { "x": 0, "y": 3 }, "health": 100, "attack": 1 },
-        { "type": "passive", "pos": { "x": 0, "y": 7 }, "health": 100, "attack": 100 },
+        { "type": "cowardly", "range": 5, "pos": { "x": 0, "y": 7 }, "health": 100, "attack": 100 },
         { "type": "aggressive", "range": 5, "pos": { "x": 0, "y": 9 }, "health": 100, "attack": 1 }
     ]
 }

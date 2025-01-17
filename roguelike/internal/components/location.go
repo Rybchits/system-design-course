@@ -1,11 +1,10 @@
 package components
 
 type Enemy struct {
-	Type            string   `json:"type"`   // Тип врага (aggressive, passive)
-	Pos             Position `json:"pos"`    // Позиция врага
-	Health          int      `json:"health"` // Здоровье врага
-	Attack          int      `json:"attack"` // Атака врага
-	RangeVisibility int      `json:"range"`  // Радиус видимости (только для aggressive)
+	Type   string   `json:"type"`   // Тип врага (aggressive, passive)
+	Pos    Position `json:"pos"`    // Позиция врага
+	Health int      `json:"health"` // Здоровье врага
+	Attack int      `json:"attack"` // Атака врага
 }
 
 type Location struct {

@@ -1,6 +1,7 @@
 package components
 
 import (
+	"math"
 	"roguelike/packages/ecs"
 	"time"
 )
@@ -22,14 +23,12 @@ func NewMobBehavior(strategy MobStrategy) *MobBehavior {
 }
 
 type aggressiveEnemyStrategy struct {
-	rangeVisibility       int
 	delayMillisec         int
 	previousStepTimestamp time.Time
 }
 
-func NewAggressiveStrategy(rangeVisibility, delayMillisec int) *aggressiveEnemyStrategy {
+func NewAggressiveStrategy(delayMillisec int) *aggressiveEnemyStrategy {
 	return &aggressiveEnemyStrategy{
-		rangeVisibility:       rangeVisibility,
 		delayMillisec:         delayMillisec,
 		previousStepTimestamp: time.Now(),
 	}
@@ -112,4 +111,69 @@ func (b *passiveStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) {
 
 func NewPassiveStrategy() *passiveStrategy {
 	return &passiveStrategy{}
+}
+
+type cowardEnemyStrategy struct {
+	delayMillisec         int
+	previousStepTimestamp time.Time
+}
+
+func NewCowardStrategy(delayMillisec int) *cowardEnemyStrategy {
+	return &cowardEnemyStrategy{
+		delayMillisec:         delayMillisec,
+		previousStepTimestamp: time.Now(),
+	}
+}
+
+func (b *cowardEnemyStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) {
+	// Проверка времени задержки
+	if time.Since(b.previousStepTimestamp).Milliseconds() < int64(b.delayMillisec) {
+		return
+	}
+
+	player := em.Get("player")
+	location := em.Get("location").Get(MaskLocation).(*Location)
+	entityPosOrNil := entity.Get(MaskPosition)
+
+	if player == nil || location == nil || entityPosOrNil == nil {
+		return
+	}
+
+	entityPos := entityPosOrNil.(*Position)
+	playerPos := player.Get(MaskPosition).(*Position)
+
+	// Определяем смежные клетки (влево, вправо, вверх, вниз)
+	adjacentPositions := []Position{
+		{X: entityPos.X + 1, Y: entityPos.Y},
+		{X: entityPos.X - 1, Y: entityPos.Y},
+		{X: entityPos.X, Y: entityPos.Y + 1},
+		{X: entityPos.X, Y: entityPos.Y - 1},
+	}
+
+	// Вычисляем манхэттенское расстояние
+	manhattanDistance := func(a, b Position) int {
+		return int(math.Abs(float64(a.X-b.X)) + math.Abs(float64(a.Y-b.Y)))
+	}
+
+	// Ищем клетку с максимальным расстоянием
+	var farthestCell *Position = nil
+	maxDistance := manhattanDistance(*playerPos, *entityPos)
+
+	for _, neighbor := range adjacentPositions {
+		if !location.IsAvailablePosition(neighbor) || !neighbor.IsFree(em) {
+			continue
+		}
+
+		distance := manhattanDistance(neighbor, *playerPos)
+		if distance > maxDistance {
+			maxDistance = distance
+			farthestCell = &neighbor
+		}
+	}
+
+	if farthestCell != nil {
+		entity.Add(NewMovement().WithNext(*farthestCell))
+	}
+
+	b.previousStepTimestamp = time.Now()
 }

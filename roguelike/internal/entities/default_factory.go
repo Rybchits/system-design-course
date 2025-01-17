@@ -37,10 +37,13 @@ func (f *defaultEntityFactory) CreateEnemy(entityId string, description componen
 	switch description.Type {
 	case "aggressive":
 		texture = components.NewTexture('A')
-		strategy = components.NewMobBehavior(components.NewAggressiveStrategy(description.RangeVisibility, 500))
+		strategy = components.NewMobBehavior(components.NewAggressiveStrategy(500))
 	case "passive":
 		texture = components.NewTexture('P')
 		strategy = components.NewMobBehavior(components.NewPassiveStrategy())
+	case "cowardly":
+		texture = components.NewTexture('C')
+		strategy = components.NewMobBehavior(components.NewCowardStrategy(500))
 	default:
 		return nil
 	}
