@@ -4,7 +4,8 @@
 
 Roguelike — это консольная игра, построенная по классическим принципам жанра Roguelike: процедурно сгенерированные карты, пошаговое управление и управление персонажем игрока. При создании архитектуры были использваны такие паттерны как: Entity-Component-System (ECS) и Observer.
 
-Для реализации предлагается использовать Python с использованием библиотек **pygame** для ввода и вывода, а также **esper** для регистрации событий и сущностей в системе. Такой выбор технологий обусловлен: простотой и скоростью разработки в условиях сжатых сроков, кроссплатформеностью и популярностью.
+Для реализации предлагается использовать Go с использованием библиотеки **tcell** для ввода и вывода. Такой выбор технологий обусловлен: простотой и скоростью разработки в условиях сжатых сроков, кроссплатформенностью и популярностью.
+
 
 Основные особенности:
 - Процедурная генерация карты с возможностью загрузки сохраненных уровней из файла.
@@ -57,41 +58,6 @@ Roguelike — это консольная игра, построенная по 
 
 ---
 
-## **Диаграмма классов**
-
-1. **Компоненты сущностей (`Entity components`)**:
-   - **Position**: Координаты объекта на карте.
-   - **Renderable**: Символ, отображаемый на экране.
-   - **Velocity**: Скорость движения объекта в виде вектора.
-   - **Health**: Уровень здоровья сущности.
-   - **Attack**: Сила атаки и радиус действия.
-   - **Modifiers**: Изменения характеристик от надетой экипировки и подобранных предметов.
-
-2. **Системы (`System`)**:
-   - **MovementSystem**: Управляет перемещением сущностей.
-   - **BattleSystem**: Обрабатывает боевые взаимодействия.
-   - **RenderSystem**: Рисует карту и сущности на экране.
-
-3. **Управляющий модуль (`World`)**:
-   - Управляет системой и их процессингом.
-
-4. **Карта (`LevelMap`)**:
-   - Содержит тайлы и описание того, какие сущности находятся на тайлах.
-   - Генерируется с помощью `LevelGenerator`.
-
-5. **Тайл (`Tile`)**:
-   - Единица игровой крты
-   - Содержит описание поверхности, ее проходимости, объектов и предметов на ней
-
-6. **Игровой цикл (`EventLoop`)**:
-   - Управляет игровым процессом через обработку событий (например, нажатие клавиш) и таймер цикла.
-
-Схема архитектуры:
-
-![architecture](./assets/roguelike_arch.png)
-
----
-
 ## **Описание архитектуры**
 
 ### **Entity-Component System (ECS)**
@@ -99,7 +65,9 @@ Roguelike — это консольная игра, построенная по 
 Использование ECS позволяет отделить данные (компоненты) от логики (системы). Это обеспечивает модульность, гибкость и лёгкость тестирования. Позволяет избежать использования тяжелых объектно-ориентированных иерархий.
 
 #### **Сущности (Entities)**
-Сущности — это уникальные идентификаторы, представляющие игровые объекты (например, игрок, враги, предметы). Являются композицией набора компонентов.
+- Сущность представляет собой объект в игре, который может иметь различные компоненты.
+- Сущности хранят свои компоненты и уникальный идентификатор.
+- Пример реализации: entity.go
 
 #### **Компоненты (Components)**
 Компоненты представляют собой данные, которые описывают свойства сущностей. Например:
@@ -109,8 +77,100 @@ Roguelike — это консольная игра, построенная по 
 #### **Системы (Systems)**
 Системы содержат логику, которая применяется к сущностям с определённым набором компонентов. Например:
 - **MovementSystem**: Управляет перемещением сущностей.
-- **RenderSystem**: Отображает состояние мира.
+- **RenderSystem**: Отображает состояние интерфейса.
 
-Взаимодействие с системами происходит при использовании паттерна Observer.
+Эта диаграмма классов описывает основные компоненты паттерна ECS и их взаимодействие. Сущности (Entity) содержат компоненты (Component), которые представляют данные. Системы (System) содержат логику, которая применяется к сущностям с определённым набором компонентов. Менеджеры сущностей (EntityManager) и систем (SystemManager) управляют коллекциями сущностей и систем соответственно. Движок (Engine) управляет жизненным циклом игры, вызывая методы Setup, Run, Teardown и Tick для всех систем
 
+```mermaid
+classDiagram
+    direction LR
+
+    class Entity {
+        +string Id
+        +uint64 Masked
+        +[]Component Components
+        +Add(components ...Component)
+        +Get(mask uint64) Component
+        +Remove(mask uint64)
+        +Mask() uint64
+    }
+
+    class Component {
+        <<interface>>
+        +Mask() uint64
+    }
+
+    class ComponentWithName {
+        <<interface>>
+        +Mask() uint64
+        +Name() string
+    }
+
+    class System {
+        <<interface>>
+        +Setup()
+        +Process(entityManager EntityManager) int
+        +Teardown()
+    }
+
+    class EntityManager {
+        <<interface>>
+        +Add(entities ...*Entity)
+        +Entities() []*Entity
+        +FilterByMask(mask uint64) []*Entity
+        +FilterByNames(names ...string) []*Entity
+        +Get(id string) *Entity
+        +Remove(entity *Entity)
+    }
+
+    class SystemManager {
+        <<interface>>
+        +Add(systems ...System)
+        +Systems() []System
+    }
+
+    class Engine {
+        <<interface>>
+        +Run()
+        +Setup()
+        +Teardown()
+        +Tick()
+    }
+
+    class defaultEntityManager {
+        +[]*Entity entities
+        +Add(entities ...*Entity)
+        +Entities() []*Entity
+        +FilterByMask(mask uint64) []*Entity
+        +FilterByNames(names ...string) []*Entity
+        +Get(id string) *Entity
+        +Remove(entity *Entity)
+    }
+
+    class defaultSystemManager {
+        +[]System systems
+        +Add(systems ...System)
+        +Systems() []System
+    }
+
+    class defaultEngine {
+        +EntityManager entityManager
+        +SystemManager systemManager
+        +Run()
+        +Setup()
+        +Teardown()
+        +Tick()
+    }
+
+    EntityManager <|-- defaultEntityManager
+    SystemManager <|-- defaultSystemManager
+    Engine <|-- defaultEngine
+    Entity "1" *-- "many" Component
+    Component <|-- ComponentWithName
+    System "1" *-- "many" Entity
+    defaultEngine "1" *-- "1" EntityManager
+    defaultEngine "1" *-- "1" SystemManager
+    EntityManager "1" *-- "many" Entity
+    SystemManager "1" *-- "many" System
+````
 ---
