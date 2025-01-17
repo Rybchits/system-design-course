@@ -7,7 +7,7 @@ import (
 	"os"
 	"roguelike/internal/components"
 	"roguelike/internal/entities"
-	combatSystemPackage "roguelike/internal/systems/combat"
+	collisionSystemPackage "roguelike/internal/systems/collision"
 	inputSystemPackage "roguelike/internal/systems/input"
 	movementSystemPackage "roguelike/internal/systems/movement"
 	renderingSystemPackage "roguelike/internal/systems/rendering"
@@ -82,10 +82,13 @@ func (b *defaultGameBuilder) BuildEngine() {
 			inputSystemPackage.NewMoveHandler(),
 			inputSystemPackage.NewQuitHandler(),
 		),
-		combatSystemPackage.NewCombatSystem(),
+		collisionSystemPackage.NewCollisionSystem().WithHandlers(
+			collisionSystemPackage.NewAttackHandler(),
+		),
 		movementSystemPackage.NewMovementSystem(),
 		renderingSystemPackage.NewRenderingSystem().WithScreen(&b.screen),
 	)
+
 	em.Add(b.entityFactory.CreatePlayer(
 		b.location.StartPosition.X,
 		b.location.StartPosition.Y,
