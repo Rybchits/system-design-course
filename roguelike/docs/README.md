@@ -6,18 +6,56 @@ Roguelike — это консольная игра, построенная по 
 
 Для реализации предлагается использовать Go с использованием библиотеки **tcell** для ввода и вывода. Такой выбор технологий обусловлен: простотой и скоростью разработки в условиях сжатых сроков, кроссплатформенностью и популярностью.
 
-
 Основные особенности:
 - Процедурная генерация карты с возможностью загрузки сохраненных уровней из файла.
 - Управление игровым процессом через клавиатуру.
 - Характеристики персонажа, изменяющиеся в зависимости от экипировки.
 - Простая консольная графика в виде ASCII символов
+- Различные виды ботов с уникальным поведением и отображением на карте
+
+### Виды ботов и их отображение на карте
+- **Агрессивный бот**: активно атакует игрока, отображается символом `A`. Ищет путь до игрока используя bfs.
+- **Пассивный бот**: не атакует игрока, отображается символом `P`.
+- **Трусливый бот**: убегает от игрока, отображается символом `C`.
+
+### Загрузка карты из файла
+Карта может быть загружена из JSON файла, который содержит следующие характеристики:
+- **location_id**: Идентификатор локации.
+- **start_position**: Начальная позиция игрока на карте.
+- **map_size**: Размер карты (ширина и высота).
+- **enemies**: Список врагов на карте, каждый из которых имеет тип, позицию, здоровье и атаку.
+
+Пример JSON файла для загрузки карты:
+```json
+{
+    "location_id": "1",
+    "start_position": {
+        "x": 0,
+        "y": 0
+    },
+    "map_size": {
+        "height": 15,
+        "width": 15
+    },
+    "enemies": [
+        { "type": "passive", "pos": { "x": 0, "y": 3 }, "health": 100, "attack": 1 },
+        { "type": "cowardly", "range": 5, "pos": { "x": 0, "y": 7 }, "health": 100, "attack": 100 },
+        { "type": "aggressive", "range": 5, "pos": { "x": 0, "y": 9 }, "health": 100, "attack": 1 }
+    ]
+}
+```
+
+### Начисление опыта и повышение уровня
+- **Начисление опыта**: Персонаж получает опыт за победу над врагами. Когда враг побежден, персонаж получает фиксированное количество очков опыта.
+- **Повышение уровня**: Когда количество опыта достигает определенного порога (уровень * 10), уровень персонажа повышается. При повышении уровня:
+  - Увеличивается максимальное здоровье персонажа на 10 единиц.
+  - Увеличивается текущий уровень персонажа.
 
 ---
 
 ## **Функциональные требования**
 1. Карта генерируется процедурно, с возможностью загрузить готовую из файла.
-2. Персонаж имеет базовые характеристики: здоровье, сила атаки, скорость.
+2. Персонаж имеет базовые характеристики: здоровье и сила атаки.
 3. Реализация инвентаря: персонаж может собирать предметы с карты, надевать и снимать их.
 4. Надетые предметы изменяют характеристики персонажа.
 5. Все предметы, находящиеся на карте, могут быть подобраны и перемещены в инвентарь.
@@ -67,21 +105,31 @@ Roguelike — это консольная игра, построенная по 
 #### **Сущности (Entities)**
 - Сущность представляет собой объект в игре, который может иметь различные компоненты.
 - Сущности хранят свои компоненты и уникальный идентификатор.
-- Пример реализации: entity.go
 
 #### **Компоненты (Components)**
 Компоненты представляют собой данные, которые описывают свойства сущностей. Например:
 - **Position**: Координаты объекта на карте.
 - **Health**: Количество здоровья сущности.
+- **Attack**: Количество урона, которое сущность может нанести в бою.
+- **Movement**: Компонент перемещения, определяющий куда сущность хочет перейти за этот такт.
+- **Texture**: Определяет как отображать сущность на карте.
+- **Experience**: Текущий опыт персонажа и его уровень.
+- **Fraction**: Компонент фракции, необходим для отличия противников от союзников.
+- **Location**: Описывает стартовые параметры локации.
+- **MobBehavior**: Копонент поведения бота, содержащий стратегию его поведения.
 
 #### **Системы (Systems)**
 Системы содержат логику, которая применяется к сущностям с определённым набором компонентов. Например:
 - **MovementSystem**: Управляет перемещением сущностей.
 - **RenderSystem**: Отображает состояние интерфейса.
+- **InputSystem**: Обрабатывает ввод с клавиатуры.
+- **CollisionSystem**: Определяет пересечение двух сущностей на карте.
+- **ExperienceSystem**: Начисляет опыт и повышает уровень персонажа.
+- **MobsBehaviorSystem**: Обрабатывает поведение мобов.
 
 Эта диаграмма классов описывает основные компоненты паттерна ECS и их взаимодействие. Сущности (Entity) содержат компоненты (Component), которые представляют данные. Системы (System) содержат логику, которая применяется к сущностям с определённым набором компонентов. Менеджеры сущностей (EntityManager) и систем (SystemManager) управляют коллекциями сущностей и систем соответственно. Движок (Engine) управляет жизненным циклом игры, вызывая методы Setup, Run, Teardown и Tick для всех систем
 
-## **Диаграмма классов паттерна ECS **
+## **Диаграмма классов паттерна ECS**
 
 ```mermaid
 classDiagram
@@ -166,6 +214,31 @@ classDiagram
 ````
 ---
 
+## Диаграмма исполнения
+
+```mermaid
+flowchart TD
+    A[Start Game] --> B[Initialize Engine]
+    B --> C[Setup Systems]
+    C --> D[Run Game Loop]
+    D --> E[Process Systems]
+    F{StateEngineStop?}
+    F -->|No| E
+    F -->|Yes| G[Teardown Systems]
+    G --> H[End Game]
+
+    subgraph Game Loop
+        E --> I[Process InputSystem]
+        I --> J[Process MovementSystem]
+        J --> K[Process CollisionSystem]
+        K --> L[Process ExperienceSystem]
+        L --> M[Process MobsBehaviorSystem]
+        M --> N[Process RenderingSystem]
+        N --> F
+    end
+    
+```
+---
 ## Диаграмма классов Roguelike c ECS
 
 ```mermaid
@@ -212,6 +285,37 @@ classDiagram
     class Movement {
         +Position Next
         +Mask() uint64
+    }
+
+    class Experience {
+        +int Points
+        +Mask() uint64
+    }
+
+    class MobBehavior {
+        +MobStrategy Strategy
+        +Mask() uint64
+    }
+
+    class MobStrategy {
+        <<interface>>
+        +Act(entity *ecs.Entity, em ecs.EntityManager)
+    }
+
+    class aggressiveEnemyStrategy {
+        +int delayMillisec
+        +time.Time previousStepTimestamp
+        +Act(entity *ecs.Entity, em ecs.EntityManager)
+    }
+
+    class passiveStrategy {
+        +Act(entity *ecs.Entity, em ecs.EntityManager)
+    }
+
+    class cowardEnemyStrategy {
+        +int delayMillisec
+        +time.Time previousStepTimestamp
+        +Act(entity *ecs.Entity, em ecs.EntityManager)
     }
 
     class System {
@@ -379,6 +483,18 @@ classDiagram
         +Teardown()
     }
 
+    class mobsBehaviorSystem {
+        +Process(em EntityManager) int
+        +Setup()
+        +Teardown()
+    }
+
+    class experienceSystem {
+        +Process(em EntityManager) int
+        +Setup()
+        +Teardown()
+    }
+
     EntityManager <|-- defaultEntityManager
     SystemManager <|-- defaultSystemManager
     Engine <|-- defaultEngine
@@ -392,12 +508,20 @@ classDiagram
     System <|-- collisionSystem
     System <|-- movementSystem
     System <|-- renderingSystem
+    System <|-- mobsBehaviorSystem
+    System <|-- experienceSystem
     Entity "1" *-- "many" Component
     Component <|-- ComponentWithName
     Component <|-- Position
     Component <|-- Health
     Component <|-- Attack
     Component <|-- Movement
+    Component <|-- Experience
+    Component <|-- MobBehavior
+    MobBehavior "1" *-- "1" MobStrategy
+    MobStrategy <|-- aggressiveEnemyStrategy
+    MobStrategy <|-- passiveStrategy
+    MobStrategy <|-- cowardEnemyStrategy
     System "1" *-- "many" Entity
     defaultEngine "1" *-- "1" EntityManager
     defaultEngine "1" *-- "1" SystemManager
