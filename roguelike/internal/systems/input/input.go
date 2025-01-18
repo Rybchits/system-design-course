@@ -26,6 +26,7 @@ func (a *inputSystem) Process(em ecs.EntityManager) (engineState int) {
 		return ecs.StateEngineContinue
 	}
 
+	// Обрабатываем нажатие
 	switch ev := (*ev).(type) {
 	case *tcell.EventResize:
 		(*a.screen).Sync()

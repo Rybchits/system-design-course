@@ -5,6 +5,7 @@ import (
 	ecs "roguelike/packages/ecs"
 )
 
+// Дефотная реализация абстрактоной фабрики для создания сущностей
 type defaultEntityFactory struct{}
 
 func NewDefaultEntityFactory() *defaultEntityFactory {

@@ -21,6 +21,7 @@ func (a *Position) WithY(y int) *Position {
 	return a
 }
 
+// Проверяет находится ли на этой позиции сущность
 func (a *Position) IsFree(em ecs.EntityManager) bool {
 	entities := em.FilterByMask(MaskPosition)
 

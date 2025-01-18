@@ -12,6 +12,7 @@ type CollisionHandler interface {
 	Handle(entity1, entity2 *ecs.Entity) bool
 }
 
+// Система определения пересечения двух сущностей на карте
 type collisionSystem struct {
 	handlers []CollisionHandler
 }
@@ -38,6 +39,7 @@ func (s *collisionSystem) Process(em ecs.EntityManager) (state int) {
 				continue
 			}
 
+			// Запускаем обработчики столкновений
 			for _, handler := range s.handlers {
 				if handler.CanHandle(entity1, entity2) {
 					engineContinue := handler.Handle(entity1, entity2)

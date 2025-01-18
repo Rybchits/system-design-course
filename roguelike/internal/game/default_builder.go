@@ -3,7 +3,6 @@ package game
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"roguelike/internal/components"
 	"roguelike/internal/entities"
@@ -45,32 +44,29 @@ func (b *defaultGameBuilder) WithPlayerHealth(health int) *defaultGameBuilder {
 	return b
 }
 
-func (b *defaultGameBuilder) WithLocation(locationFilePath string) *defaultGameBuilder {
+func (b *defaultGameBuilder) SetLocation(locationFilePath string) error {
 	file, err := os.ReadFile(locationFilePath)
 	if err != nil {
-		log.Fatalf("Failed to read location file: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to read location file: %v", err)
 	}
 	var locationData components.Location
 	if err := json.Unmarshal(file, &locationData); err != nil {
-		log.Fatalf("Failed to unmarshal location data: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to unmarshal location data: %v", err)
 	}
 	b.location = locationData
-	return b
+	return nil
 }
 
-func (b *defaultGameBuilder) BuildScreen() {
+func (b *defaultGameBuilder) BuildScreen() error {
 	screen, err := tcell.NewScreen()
 	if err != nil {
-		log.Fatalf("Failed to create screen: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create screen: %v", err)
 	}
 	if err := screen.Init(); err != nil {
-		log.Fatalf("Failed to initialize screen: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to initialize screen: %v", err)
 	}
 	b.screen = screen
+	return nil
 }
 
 func (b *defaultGameBuilder) BuildEngine() {

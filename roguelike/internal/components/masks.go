@@ -1,5 +1,6 @@
 package components
 
+// Маски компонентов, необходимые для эффективного получения сущностей
 const (
 	MaskPosition    = uint64(1 << 0)
 	MaskTexture     = uint64(1 << 1)

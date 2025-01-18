@@ -1,5 +1,6 @@
 package components
 
+// Компонент перемещения, определяющий куда сущность хочет перейти за этот такт
 type Movement struct {
 	Next Position `json:"next"`
 }

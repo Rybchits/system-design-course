@@ -5,6 +5,7 @@ import (
 	ecs "roguelike/packages/ecs"
 )
 
+// Система для начисления опыта и перехода на новый уровень
 type experienceSystem struct{}
 
 func NewExperienceSystem() *experienceSystem {

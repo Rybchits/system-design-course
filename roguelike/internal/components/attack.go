@@ -1,5 +1,6 @@
 package components
 
+// Компонент атаки, содержащий количество урона, которое сущность может нанести в бою
 type Attack struct {
 	Damage int `json:"damage"`
 }

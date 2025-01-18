@@ -6,12 +6,9 @@ import (
 	"time"
 )
 
+// Копонент поведения бота, содержащий стратегию его поведения
 type MobBehavior struct {
 	Strategy MobStrategy
-}
-
-type MobStrategy interface {
-	Act(entity *ecs.Entity, em ecs.EntityManager)
 }
 
 func (a *MobBehavior) Mask() uint64 {
@@ -22,6 +19,13 @@ func NewMobBehavior(strategy MobStrategy) *MobBehavior {
 	return &MobBehavior{Strategy: strategy}
 }
 
+type MobStrategy interface {
+	// Действие бота на данном ходу
+	Act(entity *ecs.Entity, em ecs.EntityManager)
+}
+
+// Агрессивный бот - всегда двигается в сторону игрока и атакует его
+// Имеет задержку на ход
 type aggressiveEnemyStrategy struct {
 	delayMillisec         int
 	previousStepTimestamp time.Time
@@ -52,7 +56,7 @@ func (b *aggressiveEnemyStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) 
 	entityPos := entityPosOrNil.(*Position)
 	playerPos := player.Get(MaskPosition).(*Position)
 
-	// BFS для поиска пути к игроку
+	// Запускаем BFS для поиска пути к игроку
 	queue := []Position{*entityPos}
 
 	previous := make([][]*Position, location.MapSize.Height)
@@ -93,6 +97,7 @@ func (b *aggressiveEnemyStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) 
 			path = append(path, *at)
 		}
 
+		// Добавляем компонент движения на соседнюю клетку
 		if len(path) > 1 {
 			nextPos := path[len(path)-2]
 			entity.Add(NewMovement().WithNext(nextPos))
@@ -103,16 +108,16 @@ func (b *aggressiveEnemyStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) 
 	b.previousStepTimestamp = time.Now()
 }
 
+// Пассивный бот - просто стоит на месте
 type passiveStrategy struct{}
 
-func (b *passiveStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) {
-	// Реализация пассивного поведения: просто стоят на месте
-}
+func (b *passiveStrategy) Act(entity *ecs.Entity, em ecs.EntityManager) {}
 
 func NewPassiveStrategy() *passiveStrategy {
 	return &passiveStrategy{}
 }
 
+// Трусливый бот - всегда перемещается на соседнюю клетку, которая увеличивает расстояние до игрока
 type cowardEnemyStrategy struct {
 	delayMillisec         int
 	previousStepTimestamp time.Time
