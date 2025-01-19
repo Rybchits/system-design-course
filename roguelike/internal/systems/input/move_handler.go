@@ -39,8 +39,9 @@ func (h *MoveHandler) Handle(event *tcell.EventKey, em ecs.EntityManager) bool {
 	case 'd', 'D':
 		newPlayerPosition.WithX(playerPosition.X + 1)
 	}
+
 	if location.IsAvailablePosition(*newPlayerPosition) {
-		player.Add(components.NewMovement().WithPrevious(*playerPosition).WithNext(*newPlayerPosition))
+		player.Add(components.NewMovement().WithNext(*newPlayerPosition))
 	}
 	return true
 }

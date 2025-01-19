@@ -2,7 +2,7 @@ package game
 
 // Строит игру на основанаии уровня
 type GameBuilder interface {
-	SetLocation(location string)
+	SetLocation(locationFilePath string) error
 	BuildScreen()
 	BuildEngine()
 	GetResult() GameModel

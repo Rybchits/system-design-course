@@ -18,8 +18,11 @@ func (a *movementSystem) Process(em ecs.EntityManager) (state int) {
 		movement := entity.Get(components.MaskMovement).(*components.Movement)
 		position := entity.Get(components.MaskPosition).(*components.Position)
 
-		position.X = movement.Next.X
-		position.Y = movement.Next.Y
+		if movement.Next.IsFree(em) {
+			position.X = movement.Next.X
+			position.Y = movement.Next.Y
+		}
+
 		entity.Remove(components.MaskMovement)
 	}
 

@@ -2,9 +2,11 @@ package systems
 
 import (
 	"fmt"
+	"math"
 	"roguelike/internal/components"
 	ecs "roguelike/packages/ecs"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -13,9 +15,6 @@ import (
 type renderingSystem struct {
 	// Сцена для отрисовки содержимого
 	screen *tcell.Screen
-
-	// Текст над полем
-	title string
 }
 
 func (a *renderingSystem) Setup() {}
@@ -23,15 +22,24 @@ func (a *renderingSystem) Setup() {}
 func (a *renderingSystem) Process(em ecs.EntityManager) (state int) {
 	(*a.screen).Clear()
 	location := em.Get("location").Get(components.MaskLocation).(*components.Location)
-	offsetX, offsetY := 0, 0
+
+	titleLines, titleLength := a.renderLevelTitle(em, 0, 0)
+	offsetX, offsetY := 0, titleLines
 
 	a.renderMap(em, offsetX, offsetY, location.MapSize)
-	offsetX += location.MapSize.Width + 1
+	offsetX += int(math.Max(float64(location.MapSize.Width+1), float64(titleLength+1)))
 
 	a.renderEntityDescription(em, offsetX, offsetY)
 
 	(*a.screen).Show()
+	time.Sleep(50 * time.Millisecond)
 	return ecs.StateEngineContinue
+}
+
+func (a *renderingSystem) renderLevelTitle(em ecs.EntityManager, offsetX, offsetY int) (int, int) {
+	experience := em.Get("player").Get(components.MaskExperience).(*components.Experience)
+	title := fmt.Sprintf("Level: %d XP: %d", experience.Level, experience.CurrentXP)
+	return a.renderText(title, offsetX, offsetY)
 }
 
 func (a *renderingSystem) renderMap(em ecs.EntityManager, offsetX, offsetY int, size components.Size) {
@@ -48,7 +56,7 @@ func (a *renderingSystem) renderMap(em ecs.EntityManager, offsetX, offsetY int, 
 	for _, entity := range renderable {
 		entityPosition := entity.Get(components.MaskPosition).(*components.Position)
 		entityTexture := entity.Get(components.MaskTexture).(*components.Texture)
-		(*a.screen).SetContent(entityPosition.X, entityPosition.Y, rune(*entityTexture), nil, tcell.StyleDefault)
+		(*a.screen).SetContent(entityPosition.X+offsetX, entityPosition.Y+offsetY, rune(*entityTexture), nil, tcell.StyleDefault)
 	}
 }
 
@@ -84,11 +92,6 @@ func (a *renderingSystem) Teardown() {}
 
 func (a *renderingSystem) WithScreen(screen *tcell.Screen) *renderingSystem {
 	a.screen = screen
-	return a
-}
-
-func (a *renderingSystem) WithTitle(title string) *renderingSystem {
-	a.title = title
 	return a
 }
 

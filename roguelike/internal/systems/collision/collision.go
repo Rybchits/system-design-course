@@ -12,6 +12,7 @@ type CollisionHandler interface {
 	Handle(entity1, entity2 *ecs.Entity) bool
 }
 
+// Система определения пересечения двух сущностей на карте
 type collisionSystem struct {
 	handlers []CollisionHandler
 }
@@ -31,17 +32,19 @@ func (s *collisionSystem) Process(em ecs.EntityManager) (state int) {
 		movement := entity1.Get(components.MaskMovement).(*components.Movement)
 
 		for _, entity2 := range entities {
-			// Если это пересечение с тем же самым персонажем - пропускаем
-			if entity1 == entity2 {
+			position2OrNil := entity2.Get(components.MaskPosition)
+
+			if position2OrNil == nil {
 				continue
 			}
-			position2 := entity2.Get(components.MaskPosition).(*components.Position)
+			position2 := position2OrNil.(*components.Position)
 
-			// Если пересечения нет
-			if movement.Next.X != position2.X || movement.Next.Y != position2.Y {
+			// Если это пересечение с тем же самым персонажем или пересечения нет - пропускаем
+			if entity1 == entity2 || movement.Next.X != position2.X || movement.Next.Y != position2.Y {
 				continue
 			}
 
+			// Запускаем обработчики столкновений
 			for _, handler := range s.handlers {
 				if handler.CanHandle(entity1, entity2) {
 					engineContinue := handler.Handle(entity1, entity2)
